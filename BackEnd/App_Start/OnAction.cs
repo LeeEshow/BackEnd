@@ -46,7 +46,7 @@ namespace BackEnd.OnActionHandle
             // 如果不存在允許的網域清單，就回傳自訂的錯誤訊息
             if (!blCheckDomain)
             {
-                throw new Exception().HttpException(HttpStatusCode.Forbidden, "來源拒絕存取", "Domain is not allow");
+                throw new Exception().HttpException(HttpStatusCode.Forbidden, "Domain denied access");
             }
             #endregion 網域過濾
         }
@@ -63,30 +63,30 @@ namespace BackEnd.OnActionHandle
         /// <param name="actionContext"></param>
         public override void OnActionExecuting(HttpActionContext actionContext)
         {
-            #region JWT Token
+            #region 解碼判別
             var request = actionContext.Request;
             // 有取到 JwtToken 後，判斷授權格式不存在且不正確時
-            if (request.Headers.Authorization == null || request.Headers.Authorization.Scheme != "Bearer")
+            if (request.Headers.Authorization == null || request.Headers.Authorization.Scheme != "Key")
             {
-                throw new Exception().HttpException(HttpStatusCode.Unauthorized, "請重新登入", "Lost Token");
+                throw new Exception().HttpException(HttpStatusCode.Unauthorized, "Please log in without authorization");
             }
             else
             {
-                var Token = new ClientToken().Decrpt(request.Headers.Authorization.Parameter);
+                var Token = new JWTToken().Decrpt(request.Headers.Authorization.Parameter);
                 if (Token == null)
                 {
-                    throw new Exception().HttpException(HttpStatusCode.Unauthorized, "請重新登入", "Token Not Match");
+                    throw new Exception().HttpException(HttpStatusCode.Unauthorized, "Authorization is Invalid, please login again");
                 }
                 if (Token.Exp < DateTime.Now)
                 {
-                    throw new Exception().HttpException(HttpStatusCode.Unauthorized, "請重新登入", "Token Expired");
+                    throw new Exception().HttpException(HttpStatusCode.Unauthorized, "Authorization expired, please log in again");
                 }
 
                 // 麻煩一點可以弄非對稱加密
                 // 帳號登入時產生密鑰+公鑰 > 密鑰由Server端保留 >公鑰打包進去 Token
                 // 在這邊驗證時使用 或 傳遞的資訊透過加密處理
             }
-            #endregion JWT Token
+            #endregion 解碼判別
         }
 
         /// <summary>
@@ -117,10 +117,11 @@ namespace BackEnd.OnActionHandle
             var objectContent = actionExecutedContext.Response.Content as ObjectContent;
             var data = objectContent?.Value;
 
-            var Token = new ClientToken().Decrpt(actionExecutedContext.Request.Headers.Authorization.Parameter);
+            var Token = new JWTToken().Decrpt(actionExecutedContext.Request.Headers.Authorization.Parameter);
             var response = new Response
             {
-                Token = Token.Refresh(),
+                Message = "Over",
+                Key = Token.Refresh(),
                 Data = data
             };
 
@@ -131,11 +132,6 @@ namespace BackEnd.OnActionHandle
         #region class/struct
         private class IgnoreResultAttribute : Attribute
         {
-        }
-        private struct Response
-        {
-            public string Token;
-            public object Data;
         }
         #endregion class/struct
 

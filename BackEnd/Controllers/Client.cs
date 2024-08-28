@@ -17,13 +17,14 @@ namespace BackEnd.Controllers
     /// <summary>
     /// 使用者
     /// </summary>
-    [RoutePrefix("Client")]
+    [RoutePrefix("Authorize")]
     [EnableCors("*", "*", "*")]
+    [OpenApiTag("客戶端授權", Description = "請登入取得授權驗證碼")]
     [DomainFilter, Logging]
-    public class ClientController : ApiController
+    public class AuthorizeController : ApiController
     {
         /// <summary>
-        /// 驗證人員身分並取得API授權
+        /// 登入，取得授權碼
         /// </summary>
         /// <returns></returns>
         [HttpGet]
@@ -33,22 +34,7 @@ namespace BackEnd.Controllers
             // 先透過 DB 去驗證人員 ID & Password
             // 驗證過後再給授權碼
 
-            return new ClientToken().Create(ID, Name);
-        }
-
-        /// <summary>
-        /// 更新授權
-        /// </summary>
-        /// <param name="ID"></param>
-        /// <returns></returns>
-        [HttpPost]
-        [Route("Update_Authorization")]
-        [SecurityVerify]
-        public ClientToken Update_Authorization([FromUri] string ID)
-        {
-            var Token = new ClientToken().Decrpt(Request.Headers.Authorization.Parameter);
-            Token.Refresh();
-            return Token;
+            return new JWTToken().Create(ID, Name);
         }
     }
 
@@ -57,7 +43,7 @@ namespace BackEnd.Controllers
     /// <summary>
     /// 客戶端授權
     /// </summary>
-    public class ClientToken
+    internal class JWTToken
     {
         #region 屬性
         /// <summary>
@@ -104,11 +90,11 @@ namespace BackEnd.Controllers
         /// </summary>
         /// <param name="token"></param>
         /// <returns></returns>
-        public ClientToken Decrpt(string token)
+        public JWTToken Decrpt(string token)
         {
             try
             {
-                return JWT.Decode<ClientToken>(token, Encoding.UTF8.GetBytes(secretKey), JwsAlgorithm.HS512);
+                return JWT.Decode<JWTToken>(token, Encoding.UTF8.GetBytes(secretKey), JwsAlgorithm.HS512);
             }
             catch
             {

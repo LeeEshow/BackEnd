@@ -2,6 +2,8 @@
 using System.Web.Http.Cors;
 using NSwag.Annotations;
 using BackEnd.OnActionHandle;
+using System;
+using ToolBox.ExtensionMethods;
 
 namespace BackEnd.Controllers
 {
@@ -24,6 +26,18 @@ namespace BackEnd.Controllers
         public object GET([FromUri] int Value)
         {
             return Value * 2;
+        }
+
+        /// <summary>
+        /// POST 測試
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [Route("POST")]
+        public object POST([FromBody] Response obj)
+        {
+            return obj.Message + ", " + DateTime.Now.ToCommonly();
         }
     }
 }

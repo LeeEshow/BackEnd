@@ -38,20 +38,19 @@ namespace Swagger
                 };
 
                 // 加入 Authorization JWT token 定義
-                settings.GeneratorSettings.DocumentProcessors.Add(new SecurityDefinitionAppender("Bearer", new OpenApiSecurityScheme()
+                settings.GeneratorSettings.DocumentProcessors.Add(new SecurityDefinitionAppender("Key", new OpenApiSecurityScheme()
                 {
                     Name = "Authorization",
-                    Description = "Type into the textbox: Bearer {Token}.",
-                    Scheme = "Bearer", // 不填寫會影響 Filter 判斷錯誤
+                    Description = "Type into the textbox value: Key {Authorization Code}.",
+                    Scheme = "Key", // 不填寫會影響 Filter 判斷錯誤
                     BearerFormat = "JWT",
                     Type = OpenApiSecuritySchemeType.ApiKey,
                     In = OpenApiSecurityApiKeyLocation.Header,
-
                 }));
 
-                settings.GeneratorSettings.OperationProcessors.Add(new OperationSecurityScopeProcessor("Bearer"));
-
+                settings.GeneratorSettings.OperationProcessors.Add(new OperationSecurityScopeProcessor("Key"));
             });
+
             app.UseWebApi(config);
             config.MapHttpAttributeRoutes();
             config.EnsureInitialized();

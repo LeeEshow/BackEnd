@@ -15,7 +15,7 @@ namespace BackEnd
     /// </summary>
     public static class Global
     {
-        public static HttpResponseException HttpException(this Exception obj, HttpStatusCode Code, string Message, string Content)
+        public static HttpResponseException HttpException(this Exception obj, HttpStatusCode Code, string Message)
         {
             return new HttpResponseException(new HttpResponseMessage()
             {
@@ -25,10 +25,11 @@ namespace BackEnd
                 (
                     JsonConvert.SerializeObject
                     (
-                        new
+                        new Response
                         {
                             Message = Message,
-                            Content = Content
+                            Key = "",
+                            Data = null
                         }
                     ),
                     Encoding.UTF8,
@@ -36,5 +37,24 @@ namespace BackEnd
                 )
             });
         }
+    }
+
+    /// <summary>
+    /// API 統一回復結構
+    /// </summary>
+    public struct Response
+    {
+        /// <summary>
+        /// 訊息
+        /// </summary>
+        public string Message { get; set; }
+        /// <summary>
+        /// API 授權碼
+        /// </summary>
+        public string Key { get; set; }
+        /// <summary>
+        /// 資料
+        /// </summary>
+        public object Data { get; set; }
     }
 }
