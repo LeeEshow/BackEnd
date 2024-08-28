@@ -1,4 +1,5 @@
 ﻿using BackEnd.Controllers;
+using BackEnd.Struct;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -7,16 +8,15 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Web;
-using System.Web.Http;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
-using ToolBox.ExtensionMethods;
 
 namespace BackEnd.OnActionHandle
 {
     // 參考網址 https://ithelp.ithome.com.tw/articles/10198206
     // 參考網址 https://ronsun.github.io/content/20180923-filters-of-webapi2.html
 
+    #region 網域檢查
     /// <summary>
     /// 網域檢查
     /// </summary>
@@ -28,7 +28,6 @@ namespace BackEnd.OnActionHandle
         /// <param name="actionContext"></param>
         public override void OnActionExecuting(HttpActionContext actionContext)
         {
-            #region 網域過濾
             // 設定允許的網域清單
             List<string> strAllowDomain = new List<string>()
             {
@@ -46,12 +45,14 @@ namespace BackEnd.OnActionHandle
             // 如果不存在允許的網域清單，就回傳自訂的錯誤訊息
             if (!blCheckDomain)
             {
-                throw new Exception().HttpException(HttpStatusCode.Forbidden, "Domain denied access");
+                throw new HttpException(403, "Domain denied access");
             }
-            #endregion 網域過濾
         }
     }
+    #endregion 網域檢查
 
+
+    #region 安全性驗證
     /// <summary>
     /// 安全性驗證
     /// </summary>
@@ -63,30 +64,39 @@ namespace BackEnd.OnActionHandle
         /// <param name="actionContext"></param>
         public override void OnActionExecuting(HttpActionContext actionContext)
         {
-            #region 解碼判別
+            #region 授權碼驗證
             var request = actionContext.Request;
-            // 有取到 JwtToken 後，判斷授權格式不存在且不正確時
+            // 先判斷 Header 內容中包含 Authorization
             if (request.Headers.Authorization == null || request.Headers.Authorization.Scheme != "Key")
             {
-                throw new Exception().HttpException(HttpStatusCode.Unauthorized, "Please log in without authorization");
+                throw new HttpException(401, "Please log in without authorization");
             }
             else
             {
+                // 解析 Authorization.Parameter
                 var Token = new JWTToken().Decrpt(request.Headers.Authorization.Parameter);
+
+                // Token 失效
                 if (Token == null)
                 {
-                    throw new Exception().HttpException(HttpStatusCode.Unauthorized, "Authorization is Invalid, please login again");
+                    throw new HttpException(401, "Authorization is Invalid, please login again");
                 }
+                // Token IP不吻合
+                if (Token.IP != actionContext.Request.GetUserIP())
+                {
+                    throw new HttpException(401, "Authorization's IP not match, please login again");
+                }
+                // Token 過期
                 if (Token.Exp < DateTime.Now)
                 {
-                    throw new Exception().HttpException(HttpStatusCode.Unauthorized, "Authorization expired, please log in again");
+                    throw new HttpException(401, "Authorization expired, please log in again");
                 }
 
                 // 麻煩一點可以弄非對稱加密
                 // 帳號登入時產生密鑰+公鑰 > 密鑰由Server端保留 >公鑰打包進去 Token
                 // 在這邊驗證時使用 或 傳遞的資訊透過加密處理
             }
-            #endregion 解碼判別
+            #endregion 授權碼驗證        
         }
 
         /// <summary>
@@ -136,10 +146,10 @@ namespace BackEnd.OnActionHandle
         #endregion class/struct
 
     }
+    #endregion 安全性驗證
 
 
-
-
+    #region 紀錄 Log
     /// <summary>
     /// API呼叫紀錄
     /// </summary>
@@ -151,7 +161,7 @@ namespace BackEnd.OnActionHandle
         /// <param name="actionContext"></param>
         public override void OnActionExecuting(HttpActionContext actionContext)
         {
-
+            
         }
 
         /// <summary>
@@ -163,5 +173,47 @@ namespace BackEnd.OnActionHandle
             
         }
     }
+    #endregion 紀錄 Log
 
+
+    #region 統一例外處理
+    /// <summary>
+    /// Back-End 例外統一處理特性
+    /// </summary>
+    public class ExceptionAttribute : ExceptionFilterAttribute
+    {
+        /// <summary>
+        /// 方法例外時
+        /// </summary>
+        /// <param name="actionExecutedContext"></param>
+        public override void OnException(HttpActionExecutedContext actionExecutedContext)
+        {
+            int StatusCode = 500;
+            if (actionExecutedContext.Exception is HttpException)
+            {
+                StatusCode = (actionExecutedContext.Exception as HttpException).GetHttpCode();
+            }
+
+            actionExecutedContext.Response = new HttpResponseMessage()
+            {
+                StatusCode = (HttpStatusCode)StatusCode,
+                ReasonPhrase = actionExecutedContext.Exception.Message,
+                Content = new StringContent
+                (
+                    JsonConvert.SerializeObject
+                    (
+                        new Response
+                        {
+                            Message = actionExecutedContext.Exception.Message,
+                            Key = "",
+                            Data = null
+                        }
+                    ),
+                    Encoding.UTF8,
+                    "application/json"
+                )
+            };
+        }
+    }
+    #endregion 統一例外處理
 }

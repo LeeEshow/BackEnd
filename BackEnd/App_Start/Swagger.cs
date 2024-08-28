@@ -4,6 +4,7 @@ using NSwag.AspNet.Owin;
 using NSwag.Generation.Processors.Security;
 using Owin;
 using System.Collections.Generic;
+using System.Deployment.Application;
 using System.Web.Http;
 
 [assembly: OwinStartup(typeof(Swagger.Startup))]
@@ -15,13 +16,27 @@ namespace Swagger
     /// </summary>
     public class Startup
     {
+        private string Version 
+        { 
+            get 
+            {
+                try
+                {
+                    return ApplicationDeployment.CurrentDeployment.CurrentVersion.ToString();
+                }
+                catch
+                {
+                    return "Debug model";
+                }
+            } 
+        }
+
         /// <summary>
         /// 應用程式配置
         /// </summary>
         /// <param name="app"></param>
         public void Configuration(IAppBuilder app)
         {
-            // 如需如何設定應用程式的詳細資訊，請瀏覽 https://go.microsoft.com/fwlink/?LinkID=316888
             var config = new HttpConfiguration();
 
             app.UseSwaggerUi(typeof(Startup).Assembly, settings =>
@@ -33,11 +48,11 @@ namespace Swagger
                 settings.PostProcess = document =>
                 {
                     document.Info.Title = "WEB API Sample";
-                    //document.Info.Description = "123456";
-                    //document.Info.Version = "1.0";
+                    document.Info.Description = "RESTful API + Swagger 範例";
+                    document.Info.Version = Version;
                 };
 
-                // 加入 Authorization JWT token 定義
+                // 加入 Authorization JWT 定義
                 settings.GeneratorSettings.DocumentProcessors.Add(new SecurityDefinitionAppender("Key", new OpenApiSecurityScheme()
                 {
                     Name = "Authorization",
