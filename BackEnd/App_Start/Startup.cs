@@ -1,9 +1,17 @@
 ﻿using System.Web.Http;
+using static API.Server;
 
 namespace Web_API
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public static class WebApiConfig
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="config"></param>
         public static void Register(HttpConfiguration config)
         {
             // Web API 設定和服務
@@ -18,7 +26,7 @@ namespace Web_API
             );
 
             // Setting DB Connection
-            Advantech.Database.MSSQL.Setting("172.22.246.152", "MES", "@Mes9527@", "M9_MESDB");
+            MSSQL.Setting("172.22.246.152", "MES", "@Mes9527@", "M9_MESDB");
 
         }
     }
