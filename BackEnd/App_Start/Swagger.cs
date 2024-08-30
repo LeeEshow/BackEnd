@@ -48,22 +48,22 @@ namespace Swagger
                 settings.PostProcess = document =>
                 {
                     document.Info.Title = "WEB API Sample";
-                    document.Info.Description = "RESTful API + Swagger 範例";
+                    //document.Info.Description = "RESTful API + Swagger 範例";
                     document.Info.Version = Version;
                 };
 
                 // 加入 Authorization JWT 定義
-                settings.GeneratorSettings.DocumentProcessors.Add(new SecurityDefinitionAppender("Key", new OpenApiSecurityScheme()
+                settings.GeneratorSettings.DocumentProcessors.Add(new SecurityDefinitionAppender("Token", new OpenApiSecurityScheme()
                 {
                     Name = "Authorization",
-                    Description = "Type into the textbox value: Key {Authorization Code}.",
-                    Scheme = "Key", // 不填寫會影響 Filter 判斷錯誤
+                    Description = "Type into the textbox value: Token {Authorization Code}.",
+                    Scheme = "Token", // 不填寫會影響 Filter 判斷錯誤
                     BearerFormat = "JWT",
                     Type = OpenApiSecuritySchemeType.ApiKey,
                     In = OpenApiSecurityApiKeyLocation.Header,
                 }));
 
-                settings.GeneratorSettings.OperationProcessors.Add(new OperationSecurityScopeProcessor("Key"));
+                settings.GeneratorSettings.OperationProcessors.Add(new OperationSecurityScopeProcessor("Token"));
             });
 
             app.UseWebApi(config);

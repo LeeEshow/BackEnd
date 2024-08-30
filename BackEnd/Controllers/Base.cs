@@ -15,7 +15,7 @@ using System.Web.Http.Cors;
 namespace BackEnd.Controllers
 {
     /// <summary>
-    /// 基於 ApiController 提【抽象類別】為基礎以減少重複設定
+    /// 基於 ApiController 提供【抽象類別】為基礎以減少重複設定
     /// </summary>
     [EnableCors("*", "*", "*")]
     [DomainFilter, Logging, SecurityVerify, Exception]

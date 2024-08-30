@@ -17,10 +17,25 @@ namespace BackEnd.Struct
         /// <summary>
         /// 更新授權碼
         /// </summary>
-        public string Key { get; set; }
+        public string Token { get; set; }
         /// <summary>
         /// 資料
         /// </summary>
         public object Data { get; set; }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class Safety
+    {
+        /// <summary>
+        /// 簽章
+        /// </summary>
+        public byte[] Signature;
+        /// <summary>
+        /// 密文
+        /// </summary>
+        public byte[] Ciphertext;
     }
 }

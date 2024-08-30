@@ -21,7 +21,7 @@ namespace BackEnd.Controllers
     [RoutePrefix("Authorize")]
     [EnableCors("*", "*", "*")]
     [OpenApiTag("客戶端身分驗證", Description = "請登入取得授權驗證碼後，點擊界面上【Authorize】Button 進行設定")]
-    [DomainFilter, Logging, Exception]
+    [DomainFilter, Exception]
     public class AuthorizeController : ApiController
     {
         /// <summary>
@@ -38,7 +38,7 @@ namespace BackEnd.Controllers
             return new Response
             {
                 Message = "登入成功",
-                Key = new JWTToken().Create(
+                Token = new JWTToken().Create(
                     ID, 
                     Name, 
                     Request.GetUserIP()

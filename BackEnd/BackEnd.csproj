@@ -202,8 +202,9 @@
       <Private>True</Private>
       <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.7\lib\net45\System.Web.WebPages.Razor.dll</HintPath>
     </Reference>
-    <Reference Include="ToolBox">
-      <HintPath>..\..\Tool\ToolBox\bin\Debug\ToolBox.dll</HintPath>
+    <Reference Include="ToolBox, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\Tool\ToolBox\bin\Debug\ToolBox.dll</HintPath>
     </Reference>
     <Reference Include="Ubiety.Logging.Core, Version=1.2.2.0, Culture=neutral, PublicKeyToken=133e143470e66433, processorArchitecture=MSIL">
       <HintPath>..\packages\Ubiety.Logging.Core.1.2.2\lib\net452\Ubiety.Logging.Core.dll</HintPath>
@@ -224,20 +225,21 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controllers\Base.cs" />
+    <Compile Include="Test.cs" />
     <Compile Include="Global\ExtensionMethods.cs" />
     <Compile Include="Global\OnActionHandle.cs" />
     <Compile Include="Global\Authorize.cs" />
     <Compile Include="App_Start\Startup.cs" />
     <Compile Include="App_Start\Swagger.cs" />
     <Compile Include="Controllers\Test.cs" />
-    <Compile Include="Global\Global.asax.cs">
+    <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Global\Struct.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Global\Global.asax" />
+    <Content Include="Global.asax" />
     <Content Include="Web.config" />
     <Content Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>

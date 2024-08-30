@@ -18,7 +18,7 @@ namespace BackEnd.Controllers
         /// <param name="Value"></param>
         /// <returns></returns>
         [HttpGet, Route("GET")]
-        public object GET([FromUri] int Value)
+        public object GET([FromUri] double Value)
         {
             return Value * 2;
         }

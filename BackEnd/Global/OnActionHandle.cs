@@ -67,7 +67,7 @@ namespace BackEnd.OnActionHandle
             #region 授權碼驗證
             var request = actionContext.Request;
             // 先判斷 Header 內容中包含 Authorization
-            if (request.Headers.Authorization == null || request.Headers.Authorization.Scheme != "Key")
+            if (request.Headers.Authorization == null || request.Headers.Authorization.Scheme != "Token")
             {
                 throw new HttpException(401, "Please log in without authorization");
             }
@@ -131,7 +131,7 @@ namespace BackEnd.OnActionHandle
             var response = new Response
             {
                 Message = "Over",
-                Key = Token.Refresh(),
+                Token = Token.Refresh(),
                 Data = data
             };
 
@@ -205,7 +205,7 @@ namespace BackEnd.OnActionHandle
                         new Response
                         {
                             Message = actionExecutedContext.Exception.Message,
-                            Key = "",
+                            Token = "",
                             Data = null
                         }
                     ),
