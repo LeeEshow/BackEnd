@@ -25,9 +25,6 @@ namespace Web_API
                 defaults: new { id = RouteParameter.Optional }
             );
 
-            // Setting DB Connection
-            MSSQL.Setting("172.22.246.152", "MES", "@Mes9527@", "M9_MESDB");
-
         }
     }
 }
