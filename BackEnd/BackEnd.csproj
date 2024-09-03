@@ -225,13 +225,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controllers\Base.cs" />
-    <Compile Include="Test.cs" />
     <Compile Include="Global\ExtensionMethods.cs" />
     <Compile Include="Global\OnActionHandle.cs" />
-    <Compile Include="Global\Authorize.cs" />
+    <Compile Include="Controllers\Authorize.cs" />
     <Compile Include="App_Start\Startup.cs" />
     <Compile Include="App_Start\Swagger.cs" />
-    <Compile Include="Controllers\Test.cs" />
+    <Compile Include="Controllers\Sample.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>

@@ -17,30 +17,6 @@ namespace BackEnd
     /// </summary>
     public static class ExtensionMethods
     {
-        // 2024-08-28 未實用封存
-        private static HttpResponseException HttpException(this Exception obj, HttpStatusCode Code, string Message)
-        {
-            return new HttpResponseException(new HttpResponseMessage()
-            {
-                StatusCode = Code,
-                ReasonPhrase = Message,
-                Content = new StringContent
-                (
-                    JsonConvert.SerializeObject
-                    (
-                        new Response
-                        {
-                            Message = Message,
-                            Token = "",
-                            Data = null
-                        }
-                    ),
-                    Encoding.UTF8,
-                    "application/json"
-                )
-            });
-        }
-
         /// <summary>
         /// 取得用戶IP
         /// </summary>

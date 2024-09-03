@@ -7,6 +7,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
@@ -52,11 +54,11 @@ namespace BackEnd.OnActionHandle
     #endregion 網域檢查
 
 
-    #region 安全性驗證
+    #region Token 驗證
     /// <summary>
-    /// 安全性驗證
+    /// Token 驗證
     /// </summary>
-    public class SecurityVerify : ActionFilterAttribute
+    public class TokenVerify : ActionFilterAttribute
     {
         /// <summary>
         /// API 調用前觸發
@@ -144,36 +146,8 @@ namespace BackEnd.OnActionHandle
         {
         }
         #endregion class/struct
-
     }
-    #endregion 安全性驗證
-
-
-    #region 紀錄 Log
-    /// <summary>
-    /// API呼叫紀錄
-    /// </summary>
-    public class Logging : ActionFilterAttribute
-    {
-        /// <summary>
-        /// API 調用前觸發
-        /// </summary>
-        /// <param name="actionContext"></param>
-        public override void OnActionExecuting(HttpActionContext actionContext)
-        {
-            
-        }
-
-        /// <summary>
-        /// API 調用後觸發
-        /// </summary>
-        /// <param name="actionExecutedContext"></param>
-        public override void OnActionExecuted(HttpActionExecutedContext actionExecutedContext)
-        {
-            
-        }
-    }
-    #endregion 紀錄 Log
+    #endregion Token 驗證
 
 
     #region 統一例外處理
