@@ -76,7 +76,7 @@ namespace BackEnd.OnActionHandle
             else
             {
                 // 解析 Authorization.Parameter
-                var Token = new JWTToken().Decrpt(request.Headers.Authorization.Parameter);
+                var Token = new JWTToken().Decrypt(request.Headers.Authorization.Parameter);
 
                 // Token 失效
                 if (Token == null)
@@ -129,7 +129,7 @@ namespace BackEnd.OnActionHandle
             var objectContent = actionExecutedContext.Response.Content as ObjectContent;
             var data = objectContent?.Value;
 
-            var Token = new JWTToken().Decrpt(actionExecutedContext.Request.Headers.Authorization.Parameter);
+            var Token = new JWTToken().Decrypt(actionExecutedContext.Request.Headers.Authorization.Parameter);
             var response = new Response
             {
                 Message = "Over",

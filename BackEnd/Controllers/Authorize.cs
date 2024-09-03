@@ -60,9 +60,9 @@ namespace BackEnd.Controllers
                 {
                     Message = "登入成功",
                     Token = new JWTToken().Create(
-                    Info.ID,
-                    DateTime.Now.ToCommonly(),
-                    Request.GetUserIP()
+                        Info.ID,
+                        DateTime.Now.ToCommonly(),
+                        Request.GetUserIP()
                     ),
                     Data = true,
                 };
@@ -98,11 +98,16 @@ namespace BackEnd.Controllers
         /// 認證有效時間
         /// </summary>
         public DateTime Exp { get; set; }
+        /// <summary>
+        /// 登入時間
+        /// </summary>
+        public DateTime Login_Time { get => Login_Time_; }
+        private DateTime Login_Time_;
 
         /// <summary>
         /// 對稱加密的固定加密 Key 值，建議把它建立在外部程序可修改的地方
         /// </summary>
-        private static readonly string secretKey = WebConfigurationManager.AppSettings["TokenKey"]; // 從 appSettings 取出
+        private static readonly string secretKey = RSA.PublicKey;
         /// <summary>
         /// 有效時間
         /// </summary>
@@ -121,6 +126,7 @@ namespace BackEnd.Controllers
             this.Name = Name;
             this.IP = IP;
             this.Exp = DateTime.Now.AddMinutes(ExpMinutes);
+            this.Login_Time_ = DateTime.Now.Clone();
 
             var token = JWT.Encode(this.ToDictionary(), Encoding.UTF8.GetBytes(secretKey), JwsAlgorithm.HS512);
             return token;
@@ -131,7 +137,7 @@ namespace BackEnd.Controllers
         /// </summary>
         /// <param name="token"></param>
         /// <returns></returns>
-        public JWTToken Decrpt(string token)
+        public JWTToken Decrypt(string token)
         {
             try
             {

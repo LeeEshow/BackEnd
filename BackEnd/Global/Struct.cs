@@ -48,7 +48,7 @@ namespace BackEnd.Struct
     public class VerifyID 
     {
         /// <summary>
-        /// 登入人員公鑰
+        /// 客戶端公鑰
         /// </summary>
         public string PublicKey { get; set; }
         /// <summary>
