@@ -71,7 +71,7 @@ namespace BackEnd.OnActionHandle
             // 先判斷 Header 內容中包含 Authorization
             if (request.Headers.Authorization == null || request.Headers.Authorization.Scheme != "Token")
             {
-                throw new HttpException(401, "Please log in without authorization");
+                throw new HttpException(401, "Login first");
             }
             else
             {
@@ -91,7 +91,7 @@ namespace BackEnd.OnActionHandle
                 // Token 過期
                 if (Token.Exp < DateTime.Now)
                 {
-                    throw new HttpException(401, "Authorization expired, please log in again");
+                    throw new HttpException(401, "Authorization expired, please login again");
                 }
 
                 // 麻煩一點可以弄非對稱加密
@@ -163,9 +163,15 @@ namespace BackEnd.OnActionHandle
         public override void OnException(HttpActionExecutedContext actionExecutedContext)
         {
             int StatusCode = 500;
+            Response response = new Response { Token = null, Data = null };
             if (actionExecutedContext.Exception is HttpException)
             {
                 StatusCode = (actionExecutedContext.Exception as HttpException).GetHttpCode();
+                response.Message = actionExecutedContext.Exception.Message;
+            }
+            else
+            {
+                response.Message = "Service error";
             }
 
             actionExecutedContext.Response = new HttpResponseMessage()
@@ -174,15 +180,7 @@ namespace BackEnd.OnActionHandle
                 ReasonPhrase = actionExecutedContext.Exception.Message,
                 Content = new StringContent
                 (
-                    JsonConvert.SerializeObject
-                    (
-                        new Response
-                        {
-                            Message = actionExecutedContext.Exception.Message,
-                            Token = "",
-                            Data = null
-                        }
-                    ),
+                    JsonConvert.SerializeObject(response),
                     Encoding.UTF8,
                     "application/json"
                 )

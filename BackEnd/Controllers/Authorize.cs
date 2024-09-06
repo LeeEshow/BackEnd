@@ -46,10 +46,9 @@ namespace BackEnd.Controllers
         /// <param name="obj"></param>
         /// <returns></returns>
         [HttpPost, Route("VerifyID")]
-        public object VerifyID([FromBody] VerifyID obj)
+        public object VerifyID([FromBody] Packet obj)
         {
-            string str = "";
-            if (RSA.Decrypt(obj.PublicKey, obj.Packet, out str))
+            if (RSA.Decrypt(obj, out string str))
             {
                 var Info = JsonConvert.DeserializeObject<User_Info>(str);
 
@@ -69,7 +68,7 @@ namespace BackEnd.Controllers
             }
             else
             {
-                throw new HttpException(401, "Verify fail");
+                throw new HttpException(401, "Verify failed");
             }
         }
     }
@@ -172,7 +171,7 @@ namespace BackEnd.Controllers
     }
 
     /// <summary>
-    /// 加密傳輸
+    /// 非對稱加密
     /// </summary>
     internal static class RSA
     {
@@ -199,9 +198,9 @@ namespace BackEnd.Controllers
         /// <param name="Receiver_PublicKey"></param>
         /// <param name="Content">本文</param>
         /// <returns></returns>
-        public static Packet Encrypt(string Receiver_PublicKey, string Content)
+        public static Content Encrypt(string Receiver_PublicKey, string Content)
         {
-            Packet safe = new Packet();
+            Content safe = new Content();
             // 加密簽章
             using (var stream = Content.ToStream())
             {
@@ -248,17 +247,16 @@ namespace BackEnd.Controllers
         /// <summary>
         /// 解密
         /// </summary>
-        /// <param name="Receiver_PublicKey"></param>
-        /// <param name="Safety_Obj">加密結構</param>
+        /// <param name="Packet">加密結構</param>
         /// <param name="Content">解密後本文</param>
         /// <returns></returns>
-        public static bool Decrypt(string Receiver_PublicKey, Packet Safety_Obj, out string Content)
+        public static bool Decrypt(Packet Packet, out string Content)
         {
             Content = null;
             int size = rsa.KeySize / 8;
             byte[] buffer = new byte[size];
 
-            using (MemoryStream inputStream = new MemoryStream(Safety_Obj.Ciphertext), outputStream = new MemoryStream())
+            using (MemoryStream inputStream = new MemoryStream(Packet.Content.Ciphertext), outputStream = new MemoryStream())
             {
 
                 while (true)
@@ -279,8 +277,8 @@ namespace BackEnd.Controllers
                 // 驗證簽章
                 using (var publisher = new RSACryptoServiceProvider())
                 {
-                    publisher.FromXmlString(Receiver_PublicKey);
-                    if (publisher.VerifyData(data, new MD5CryptoServiceProvider(), Safety_Obj.Signature))
+                    publisher.FromXmlString(Packet.PublicKey);
+                    if (publisher.VerifyData(data, new MD5CryptoServiceProvider(), Packet.Content.Signature))
                     {
                         Content = Encoding.UTF8.GetString(data);
                         return true;
