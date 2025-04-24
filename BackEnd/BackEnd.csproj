@@ -199,7 +199,7 @@
     </Reference>
     <Reference Include="ToolBox, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\Tool\ToolBox\bin\Debug\ToolBox.dll</HintPath>
+      <HintPath>..\..\ToolBox\ToolBox\bin\Debug\ToolBox.dll</HintPath>
     </Reference>
     <Reference Include="Ubiety.Logging.Core, Version=1.2.2.0, Culture=neutral, PublicKeyToken=133e143470e66433, processorArchitecture=MSIL">
       <HintPath>..\packages\Ubiety.Logging.Core.1.2.2\lib\net452\Ubiety.Logging.Core.dll</HintPath>
