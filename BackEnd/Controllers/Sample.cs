@@ -5,6 +5,7 @@ using BackEnd.Struct;
 using System.Net;
 using System.Net.Http;
 using BackEnd.OnActionHandle;
+using ToolBox.WEB.Struct;
 
 namespace BackEnd.Controllers
 {
@@ -36,5 +37,23 @@ namespace BackEnd.Controllers
         {
             return obj.Message + ", " + DateTime.Now.ToCommonly();
         }
+
+        /// <summary>
+        /// 雙向加密
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        [Exception]
+        [HttpPost, Route("EncryptPOST")]
+        public object EncryptPOST([FromBody] Packet obj)
+        {
+            var value = Global.WebCryp.Decrypt(obj);
+            return Global.WebCryp.Encrypt(obj.PublicKey, new 
+            {
+                Value = value,
+                Text = "被你找到秘密了"
+            });
+        }
+
     }
 }
