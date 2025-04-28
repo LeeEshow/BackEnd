@@ -30,7 +30,13 @@ namespace BackEnd.Struct
 
     internal class User_Info
     {
-        public string ID;
-        public string Password;
+        /// <summary>
+        /// 
+        /// </summary>
+        public string ID { get; set; }
+        /// <summary>
+        /// 
+        /// </summary>
+        public string Password { get; set; }
     }
 }

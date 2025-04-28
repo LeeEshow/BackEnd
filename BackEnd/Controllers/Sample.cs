@@ -49,8 +49,8 @@ namespace BackEnd.Controllers
         [HttpPost, Route("EncryptPOST")]
         public object EncryptPOST([FromBody] Packet obj)
         {
-            var value = Global.WebCryp.Decrypt(obj);
-            return Global.WebCryp.Encrypt(obj.PublicKey, new 
+            var value = Global.TwoWayCryp.Decrypt(obj);
+            return Global.TwoWayCryp.Encrypt(obj.PublicKey, new 
             {
                 Value = value,
                 Text = "被你找到秘密了"
@@ -61,7 +61,7 @@ namespace BackEnd.Controllers
         {
             // Client Sample
 
-            WebCryp Client = new WebCryp();
+            TwoWayCryp Client = new TwoWayCryp();
             // 取得 Server 公鑰
             var server_key = RESTful.Get(@"https://localhost:44388/Authorize/GetKey");
 

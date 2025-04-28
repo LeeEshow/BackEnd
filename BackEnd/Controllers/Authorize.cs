@@ -25,8 +25,6 @@ namespace BackEnd.Controllers
     [DomainFilter, Exception]
     public class AuthorizeController : ApiController
     {
-        
-
         /// <summary>
         /// 取得伺服端公鑰
         /// </summary>
@@ -34,7 +32,7 @@ namespace BackEnd.Controllers
         [HttpGet, Route("GetKey")]
         public object GetKey()
         {
-            return Global.WebCryp.PublicKey;
+            return Global.TwoWayCryp.PublicKey;
         }
 
         /// <summary>
@@ -47,7 +45,7 @@ namespace BackEnd.Controllers
         {
             try
             {
-                var Info = Global.WebCryp.Decrypt<User_Info>(obj);
+                var Info = Global.TwoWayCryp.Decrypt<User_Info>(obj);
                 // 取得 Info 後執行驗證
 
                 return new Response
@@ -99,9 +97,9 @@ namespace BackEnd.Controllers
         private DateTime Login_Time_;
 
         /// <summary>
-        /// 對稱加密的固定加密 Key 值，建議把它建立在外部程序可修改的地方
+        /// 對稱加密的固定加密 Key 值
         /// </summary>
-        private static readonly string secretKey = new WebCryp().PublicKey.ToString();
+        private static readonly string secretKey = new TwoWayCryp().PublicKey.ToString();
         /// <summary>
         /// 有效時間
         /// </summary>

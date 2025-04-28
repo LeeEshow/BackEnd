@@ -6,19 +6,19 @@ using ToolBox.WEB;
 /// <summary>
 /// 靜態擴充
 /// </summary>
-public static class Global
+internal static class Global
 {
     /// <summary>
     /// 雙向加密物件
     /// </summary>
-    public static WebCryp WebCryp = new WebCryp(2048);
+    internal static TwoWayCryp TwoWayCryp = new TwoWayCryp(2048);
 
     /// <summary>
     /// 取得用戶IP
     /// </summary>
     /// <param name="obj"></param>
     /// <returns></returns>
-    public static string GetUserIP(this HttpRequestMessage obj)
+    internal static string GetUserIP(this HttpRequestMessage obj)
     {
         if (obj.Properties.ContainsKey("MS_HttpContext"))
         {
