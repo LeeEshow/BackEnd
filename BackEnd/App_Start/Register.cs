@@ -153,6 +153,7 @@ namespace BackEnd.Handler
     /// </summary>
     public class ResponseHandler : DelegatingHandler
     {
+        #region
         /// <summary>
         /// 
         /// </summary>
@@ -197,6 +198,7 @@ namespace BackEnd.Handler
 
             return response;
         }
+        #endregion
     }
 
 }

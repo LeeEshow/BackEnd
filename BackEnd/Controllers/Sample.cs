@@ -58,26 +58,22 @@ namespace BackEnd.Controllers
 
         private void EncryptPOST_Client_Sample()
         {
-            // Client Sample
-
             TwoWayCryp Client = new TwoWayCryp();
-            // 取得 Server 公鑰
             var server_key = RESTful.Get<Response>(@"https://localhost:44388/Authorize/GetKey");
+            var Info = new { ID = "Eshow", Password = "A123456" };
 
-            // 取得 Token
-            var packet = Client.Encrypt(server_key.Data.ToString(), new { ID = "Eshow", Password = "A123456" });
-            var res = RESTful.Post<Response>("https://localhost:44388/Authorize/VerifyID", packet);
+            var res = RESTful.Post<Response>("https://localhost:44388/Authorize/VerifyID", Info);
             if (!RESTful.Client.DefaultRequestHeaders.Contains("Authorization"))
             {
                 RESTful.Client.DefaultRequestHeaders.Add("Authorization", "Token " + res.Token);
             }
 
-            // 加密傳輸
-            packet = Client.Encrypt(server_key.Data.ToString(), new { ABC = DateTime.Now });
+            //var data = RESTful.Get(@"https://localhost:44388/Sample/GET?Value=444");
+
+            var packet = Client.Encrypt(server_key.Data.ToString(), new { A = "Test", B = 123456789 });
             var data = RESTful.Post<Response>("https://localhost:44388/Sample/EncryptPOST", packet);
             packet = JsonConvert.DeserializeObject<Packet>(data.Data.ToString());
 
-            // 解密 Response
             var str = Client.Decrypt(packet);
         }
     }
