@@ -6,14 +6,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Formatting;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using System.Web.Http;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
 
-namespace BackEnd.OnActionHandle
+namespace BackEnd.FilterAttribute
 {
     // 參考網址 https://ithelp.ithome.com.tw/articles/10198206
     // 參考網址 https://ronsun.github.io/content/20180923-filters-of-webapi2.html
@@ -66,6 +69,10 @@ namespace BackEnd.OnActionHandle
         /// <param name="actionContext"></param>
         public override void OnActionExecuting(HttpActionContext actionContext)
         {
+            if (actionContext.ActionDescriptor.GetCustomAttributes<AllowAnonymousAttribute>().Any()
+                || actionContext.ControllerContext.ControllerDescriptor.GetCustomAttributes<AllowAnonymousAttribute>().Any())
+                return;
+
             #region 授權碼驗證
             var request = actionContext.Request;
             // 先判斷 Header 內容中包含 Authorization
@@ -93,59 +100,9 @@ namespace BackEnd.OnActionHandle
                 {
                     throw new HttpException(401, "Authorization expired, please login again");
                 }
-
-                // 麻煩一點可以弄非對稱加密
-                // 帳號登入時產生密鑰+公鑰 > 密鑰由Server端保留 >公鑰打包進去 Token
-                // 在這邊驗證時使用 或 傳遞的資訊透過加密處理
             }
             #endregion 授權碼驗證        
         }
-
-        /// <summary>
-        /// API 調用後觸發
-        /// </summary>
-        /// <param name="actionExecutedContext"></param>
-        public override void OnActionExecuted(HttpActionExecutedContext actionExecutedContext)
-        {
-            #region 排除例外
-            if (actionExecutedContext.Exception != null)
-            {
-                return;
-            }
-
-            var ignoreResult1 = actionExecutedContext.ActionContext.ActionDescriptor.GetCustomAttributes<IgnoreResultAttribute>().FirstOrDefault();
-            var ignoreResult2 = actionExecutedContext.ActionContext.ControllerContext.ControllerDescriptor.GetCustomAttributes<IgnoreResultAttribute>().FirstOrDefault();
-            if (ignoreResult1 != null || ignoreResult2 != null)
-            {
-                return;
-            }
-            if (ignoreResult1 != null || ignoreResult2 != null)
-            {
-                return;
-            }
-            #endregion 排除例外
-
-            #region 統一 Response 結構
-            var objectContent = actionExecutedContext.Response.Content as ObjectContent;
-            var data = objectContent?.Value;
-
-            var Token = new JWTToken().Decrypt(actionExecutedContext.Request.Headers.Authorization.Parameter);
-            var response = new Response
-            {
-                Message = "Over",
-                Token = Token.Refresh(),
-                Data = data
-            };
-
-            actionExecutedContext.Response = actionExecutedContext.Request.CreateResponse(response);
-            #endregion 統一 Response 結構
-        }
-
-        #region class/struct
-        private class IgnoreResultAttribute : Attribute
-        {
-        }
-        #endregion class/struct
     }
     #endregion Token 驗證
 
@@ -154,7 +111,7 @@ namespace BackEnd.OnActionHandle
     /// <summary>
     /// Back-End 例外統一處理特性
     /// </summary>
-    public class ExceptionAttribute : ExceptionFilterAttribute
+    public class ExceptionFilter : ExceptionFilterAttribute
     {
         /// <summary>
         /// 方法例外時
@@ -163,15 +120,9 @@ namespace BackEnd.OnActionHandle
         public override void OnException(HttpActionExecutedContext actionExecutedContext)
         {
             int StatusCode = 500;
-            Response response = new Response { Token = null, Data = null };
             if (actionExecutedContext.Exception is HttpException)
             {
                 StatusCode = (actionExecutedContext.Exception as HttpException).GetHttpCode();
-                response.Message = actionExecutedContext.Exception.Message;
-            }
-            else
-            {
-                response.Message = "Service error";
             }
 
             actionExecutedContext.Response = new HttpResponseMessage()
@@ -180,7 +131,11 @@ namespace BackEnd.OnActionHandle
                 ReasonPhrase = actionExecutedContext.Exception.Message,
                 Content = new StringContent
                 (
-                    JsonConvert.SerializeObject(response),
+                    JsonConvert.SerializeObject(new Response 
+                    { 
+                        Token = null, 
+                        Data = actionExecutedContext.Exception.Message
+                    }),
                     Encoding.UTF8,
                     "application/json"
                 )
@@ -188,4 +143,60 @@ namespace BackEnd.OnActionHandle
         }
     }
     #endregion 統一例外處理
+
+}
+
+namespace BackEnd.Handler
+{
+    /// <summary>
+    /// 統一 Response 結構
+    /// </summary>
+    public class ResponseHandler : DelegatingHandler
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            // 先呼叫內層管線（Controller）
+            var response = await base.SendAsync(request, cancellationToken);
+
+            // 只包 2xx 
+            if (response.IsSuccessStatusCode)
+            {
+                string token_str = null;
+                if (request.Headers.Authorization != null) 
+                {
+                    var Token = new JWTToken().Decrypt(request.Headers.Authorization.Parameter);
+                    token_str = Token.Refresh();
+                }
+
+                // 包裝成統一格式
+                var wrapper = new Response
+                {
+                    Token = token_str,
+                    Data = await response.Content.ReadAsAsync<object>(cancellationToken)
+                };
+
+                // 設定新 Content
+                response.Content = new ObjectContent<Response>(
+                    wrapper,
+                    new JsonMediaTypeFormatter());
+
+                // **在這裡設定 Cache-Control**
+                response.Headers.CacheControl = new CacheControlHeaderValue
+                {
+                    Public = true,
+                    MaxAge = TimeSpan.FromMinutes(10),
+                    MustRevalidate = true
+                };
+            }
+
+            return response;
+        }
+    }
+
 }

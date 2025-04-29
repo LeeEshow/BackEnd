@@ -15,7 +15,7 @@ namespace BackEnd.Struct
         /// <summary>
         /// 訊息
         /// </summary>
-        public string Message { get; set; }
+        //public string Message { get; set; }
         /// <summary>
         /// 授權
         /// </summary>
@@ -27,16 +27,4 @@ namespace BackEnd.Struct
     }
     #endregion Response
 
-
-    internal class User_Info
-    {
-        /// <summary>
-        /// 
-        /// </summary>
-        public string ID { get; set; }
-        /// <summary>
-        /// 
-        /// </summary>
-        public string Password { get; set; }
-    }
 }

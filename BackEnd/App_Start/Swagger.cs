@@ -38,6 +38,7 @@ namespace Swagger
         public void Configuration(IAppBuilder app)
         {
             var config = new HttpConfiguration();
+            Web_API.WebApiConfig.Register(config);
 
             app.UseSwaggerUi(typeof(Startup).Assembly, settings =>
             {
@@ -48,7 +49,6 @@ namespace Swagger
                 settings.PostProcess = document =>
                 {
                     document.Info.Title = "WEB API Sample";
-                    //document.Info.Description = "RESTful API + Swagger 範例";
                     document.Info.Version = Version;
                 };
 
@@ -67,7 +67,6 @@ namespace Swagger
             });
 
             app.UseWebApi(config);
-            config.MapHttpAttributeRoutes();
             config.EnsureInitialized();
         }
     }

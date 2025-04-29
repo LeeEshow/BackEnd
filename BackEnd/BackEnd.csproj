@@ -214,9 +214,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Controllers\Base.cs" />
     <Compile Include="Global\ExtensionMethods.cs" />
-    <Compile Include="Global\OnActionHandle.cs" />
+    <Compile Include="App_Start\Register.cs" />
     <Compile Include="Controllers\Authorize.cs" />
     <Compile Include="App_Start\Startup.cs" />
     <Compile Include="App_Start\Swagger.cs" />
