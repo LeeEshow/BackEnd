@@ -8,6 +8,8 @@ using ToolBox.WEB.Struct;
 using ToolBox.WEB;
 using Newtonsoft.Json;
 using System.Web.Http.Cors;
+using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 
 namespace BackEnd.Controllers
 {
@@ -15,7 +17,7 @@ namespace BackEnd.Controllers
     /// 測試
     /// </summary>
     [EnableCors("*", "*", "*")]
-    [RoutePrefix("Sample"), OpenApiTag("Sample", Description = "功能測試中")]
+    [RoutePrefix("Sample")]
     public class SampleController : ApiController
     {
         /// <summary>
@@ -49,9 +51,10 @@ namespace BackEnd.Controllers
         public object EncryptPOST([FromBody] Packet obj)
         {
             var value = Global.TwoWayCryp.Decrypt(obj);
+            JToken jToken = JToken.Parse(value);
             return Global.TwoWayCryp.Encrypt(obj.PublicKey, new 
             {
-                Value = value,
+                Value = jToken,
                 Text = "被你找到秘密了"
             });
         }
