@@ -29,28 +29,23 @@ namespace BackEnd.FilterAttribute
         /// <summary>
         /// 方法例外時
         /// </summary>
-        /// <param name="actionExecutedContext"></param>
-        public override void OnException(HttpActionExecutedContext actionExecutedContext)
+        /// <param name="context"></param>
+        /// <param name="cancellationToken"></param>
+        public override Task OnExceptionAsync(HttpActionExecutedContext context, CancellationToken cancellationToken)
         {
-            int StatusCode = 500;
-            string message = "Server Error";
-            if (actionExecutedContext.Exception is HttpException)
+            // 預設 500 錯誤
+            var code = HttpStatusCode.InternalServerError;
+            var msg = "Server Error";
+
+            if (context.Exception is HttpException httpEx)
             {
-                StatusCode = (actionExecutedContext.Exception as HttpException).GetHttpCode();
-                message = actionExecutedContext.Exception.Message;
+                code = (HttpStatusCode)httpEx.GetHttpCode();
+                msg = httpEx.Message;
             }
 
-            actionExecutedContext.Response = new HttpResponseMessage()
-            {
-                StatusCode = (HttpStatusCode)StatusCode,
-                //ReasonPhrase = actionExecutedContext.Exception.Message,
-                Content = new StringContent
-                (
-                    JsonConvert.SerializeObject(message),
-                    Encoding.UTF8,
-                    "application/json"
-                )
-            };
+            // 建議改用 CreateErrorResponse 可支援更多格式
+            context.Response = context.Request.CreateErrorResponse(code, msg);
+            return Task.CompletedTask;
         }
     }
     #endregion 統一例外處理
@@ -62,31 +57,44 @@ namespace BackEnd.FilterAttribute
     /// </summary>
     public class DomainFilter : ActionFilterAttribute
     {
+        private static readonly HashSet<string> AllowedDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "localhost:44388",
+            "localhost:3000",
+            // 未來可改從 ConfigurationManager.AppSettings["AllowedDomains"] 讀取
+        };
+
         /// <summary>
         /// API 調用前觸發
         /// </summary>
-        /// <param name="actionContext"></param>
-        public override void OnActionExecuting(HttpActionContext actionContext)
+        /// <param name="context"></param>
+        /// <param name="cancellationToken"></param>
+        public override Task OnActionExecutingAsync(HttpActionContext context, CancellationToken cancellationToken)
         {
-            // 設定允許的網域清單
-            List<string> strAllowDomain = new List<string>()
+            // 取自 Origin header（較符合 CORS)
+            string originOrHost = null;
+
+            // 1. 優先嘗試從 Origin header 取值
+            if (context.Request.Headers.TryGetValues("Origin", out var originValues))
             {
-                "localhost:44388",
-                "localhost:3000",
-            };
-
-            // 取出來自呼叫端的網域
-            //string strOrigin = actionContext.Request.Headers.GetValues("Origin").FirstOrDefault();
-            string strOrigin = actionContext.Request.Headers.Host;
-
-            // 確認呼叫端的網域是否存在於允許的清單中
-            bool blCheckDomain = strAllowDomain.Contains(strOrigin);
-
-            // 如果不存在允許的網域清單，就回傳自訂的錯誤訊息
-            if (!blCheckDomain)
-            {
-                throw new HttpException(403, "Domain denied access");
+                originOrHost = originValues.FirstOrDefault();
             }
+            // 2. 若無 Origin，再嘗試從 Host header 取值
+            else if (!string.IsNullOrEmpty(context.Request.Headers.Host))
+            {
+                originOrHost = context.Request.Headers.Host;
+            }
+            // 3. 最後 fallback 到 RequestUri.Authority
+            else
+            {
+                originOrHost = context.Request.RequestUri.Authority;
+            }
+
+            if (string.IsNullOrEmpty(originOrHost) || !AllowedDomains.Contains(originOrHost))
+            {
+                throw new HttpException((int)HttpStatusCode.Forbidden, "Domain denied access");
+            }
+            return Task.CompletedTask;
         }
     }
     #endregion 網域檢查
@@ -98,70 +106,57 @@ namespace BackEnd.FilterAttribute
     /// </summary>
     public class TokenVerify : ActionFilterAttribute
     {
+        private bool HasAttribute<T>(HttpActionContext ctx) where T : Attribute
+            => ctx.ActionDescriptor.GetCustomAttributes<T>().Any()
+            || ctx.ControllerContext.ControllerDescriptor.GetCustomAttributes<T>().Any();
+
         /// <summary>
         /// API 調用前觸發
         /// </summary>
-        /// <param name="actionContext"></param>
-        public override void OnActionExecuting(HttpActionContext actionContext)
+        /// <param name="context"></param>
+        /// <param name="cancellationToken"></param>
+        public override async Task OnActionExecutingAsync(HttpActionContext context, CancellationToken cancellationToken)
         {
-            if (actionContext.ActionDescriptor.GetCustomAttributes<NotTokenAttribute>().Any() || 
-                actionContext.ControllerContext.ControllerDescriptor.GetCustomAttributes<NotTokenAttribute>().Any())
-                return;
+            // 標記 NotToken 就跳過
+            if (HasAttribute<NotTokenAttribute>(context)) return;
 
-            #region 授權碼驗證
-            var request = actionContext.Request;
-            // 先判斷 Header 內容中包含 Authorization
-            if (request.Headers.Authorization == null || request.Headers.Authorization.Scheme != "Token")
-            {
-                throw new HttpException(401, "Login first");
-            }
-            else
-            {
-                // 解析 Authorization.Parameter
-                var Token = new JWTToken().Decrypt(request.Headers.Authorization.Parameter);
+            var req = context.Request;
+            if (req.Headers.Authorization == null || req.Headers.Authorization.Scheme != "Token")
+                throw new HttpException((int)HttpStatusCode.Unauthorized, "Login first");
 
-                // Token 失效
-                if (Token == null)
-                {
-                    throw new HttpException(401, "Authorization is Invalid, please login again");
-                }
-                // Token IP不吻合
-                if (Token.IP != actionContext.Request.GetUserIP())
-                {
-                    throw new HttpException(401, "Authorization's IP not match, please login again");
-                }
-                // Token 過期
-                if (Token.Exp < DateTime.Now)
-                {
-                    throw new HttpException(401, "Authorization expired, please login again");
-                }
-            }
-            #endregion 授權碼驗證        
+            var jwt = new JWTToken().Decrypt(req.Headers.Authorization.Parameter);
+            if (jwt == null)
+                throw new HttpException((int)HttpStatusCode.Unauthorized, "Authorization is Invalid, please login again");
+
+            if (jwt.IP != req.GetUserIP())
+                throw new HttpException((int)HttpStatusCode.Unauthorized, "Authorization's IP not match, please login again");
+
+            if (jwt.Exp < DateTime.UtcNow)
+                throw new HttpException((int)HttpStatusCode.Unauthorized, "Authorization expired, please login again");
         }
 
         /// <summary>
         /// API 調用後觸發
         /// </summary>
-        /// <param name="actionExecutedContext"></param>
-        public override void OnActionExecuted(HttpActionExecutedContext actionExecutedContext)
+        /// <param name="context"></param>
+        /// <param name="cancellationToken"></param>
+        public override async Task OnActionExecutedAsync(HttpActionExecutedContext context, CancellationToken cancellationToken)
         {
-            #region 授權碼更新
-            if (actionExecutedContext.Response.IsSuccessStatusCode)
+            // 成功回應才刷新 Token
+            var req = context.Request;
+            if (context.Response.IsSuccessStatusCode && req.Headers.Authorization != null)
             {
-                if (actionExecutedContext.Request.Headers.Authorization != null)
-                {
-                    var Token = new JWTToken().Decrypt(actionExecutedContext.Request.Headers.Authorization.Parameter);
+                var jwt = new JWTToken().Decrypt(req.Headers.Authorization.Parameter);
+                var newToken = jwt.Refresh();
 
-                    actionExecutedContext.Response.Headers.Add("Token", Token.Refresh());
-                    actionExecutedContext.Response.Headers.CacheControl = new CacheControlHeaderValue
-                    {
-                        Public = true,
-                        MaxAge = TimeSpan.FromMinutes(JWTToken.ExpMinutes),
-                        MustRevalidate = true
-                    };
-                }
+                context.Response.Headers.Add("Token", newToken);
+                context.Response.Headers.CacheControl = new CacheControlHeaderValue
+                {
+                    Public = true,
+                    MaxAge = TimeSpan.FromMinutes(JWTToken.ExpMinutes),
+                    MustRevalidate = true
+                };
             }
-            #endregion 授權碼更新
         }
     }
 
@@ -181,84 +176,52 @@ namespace BackEnd.FilterAttribute
     /// </summary>
     public class TWEncryptVerify : ActionFilterAttribute
     {
+        private bool HasAttribute<T>(HttpActionContext ctx) where T : Attribute
+            => ctx.ActionDescriptor.GetCustomAttributes<T>().Any()
+            || ctx.ControllerContext.ControllerDescriptor.GetCustomAttributes<T>().Any();
+
         /// <summary>
         /// API 調用前觸發
         /// </summary>
-        /// <param name="actionContext"></param>
-        public override void OnActionExecuting(HttpActionContext actionContext)
+        /// <param name="context"></param>
+        /// <param name="cancellationToken"></param>
+        public override async Task OnActionExecutingAsync(HttpActionContext context, CancellationToken cancellationToken)
         {
-            try
-            {
-                if (actionContext.ActionDescriptor.GetCustomAttributes<NotEncryptAttribute>().Any() ||
-                    actionContext.ControllerContext.ControllerDescriptor.GetCustomAttributes<NotEncryptAttribute>().Any() ||
-                    actionContext.Request.Method.ToString() == "GET")
-                {
-                    return;
-                }
+            if (HasAttribute<NotEncryptAttribute>(context) || context.Request.Method == HttpMethod.Get)
+                return;
 
-                // 1. 讀取整個 Request Body（JSON 格式的 Packet）
-                var raw = actionContext.Request.Content.ReadAsStringAsync().Result;
-                var packet = JsonConvert.DeserializeObject<Packet>(raw);
+            // 1. 讀取 Packet
+            var raw = await context.Request.Content.ReadAsStringAsync();
+            var packet = JsonConvert.DeserializeObject<Packet>(raw);
 
-                // 2. 解密：取得原始的 JSON 字串
-                var data = Global.TwoWayCryp.Decrypt(packet);
-
-                // 3. 反序列化成 Action 的 DTO 參數
-                //    這裡假設 Action 只有一個參數，且名稱與型別可動態取得
-                var binding = actionContext.ActionDescriptor.ActionBinding.ParameterBindings[0];
-                var paramType = binding.Descriptor.ParameterType;
-                var dto = JsonConvert.DeserializeObject(data, paramType);
-
-                // 4. 用解好的 DTO 覆寫原本的 ActionArguments
-                actionContext.ActionArguments[binding.Descriptor.ParameterName] = dto;
-            }
-            catch
-            {
-                throw new HttpException(403, "TWEncrypt Error");
-            }
+            // 2. 解密並反序列化 DTO
+            var json = Global.TwoWayCryp.Decrypt(packet);
+            var param = context.ActionDescriptor.ActionBinding.ParameterBindings.First();
+            var dto = JsonConvert.DeserializeObject(json, param.Descriptor.ParameterType);
+            context.ActionArguments[param.Descriptor.ParameterName] = dto;
         }
 
         /// <summary>
         /// API 調用後觸發
         /// </summary>
-        /// <param name="actionExecutedContext"></param>
-        public override void OnActionExecuted(HttpActionExecutedContext actionExecutedContext)
+        /// <param name="context"></param>
+        /// <param name="cancellationToken"></param>
+        public override async Task OnActionExecutedAsync(HttpActionExecutedContext context, CancellationToken cancellationToken)
         {
-            try
+            if (HasAttribute<NotEncryptAttribute>(context.ActionContext) ||
+                context.Request.Method == HttpMethod.Get)
+                return;
+
+            if (context.Response != null && context.Response.IsSuccessStatusCode)
             {
-                if (actionExecutedContext.ActionContext.ActionDescriptor.GetCustomAttributes<NotEncryptAttribute>().Any() ||
-                    actionExecutedContext.ActionContext.ControllerContext.ControllerDescriptor.GetCustomAttributes<NotEncryptAttribute>().Any() ||
-                    actionExecutedContext.Request.Method.ToString() == "GET")
-                {
-                    return;
-                }
+                // 解出原始物件
+                var original = await context.Response.Content.ReadAsAsync<object>(new[] { new JsonMediaTypeFormatter() });
+                // 加密為 Packet
+                var rawReq = await context.Request.Content.ReadAsStringAsync();
+                var reqPkt = JsonConvert.DeserializeObject<Packet>(rawReq);
+                var encPkt = Global.TwoWayCryp.Encrypt(reqPkt.PublicKey, original);
 
-                var raw = actionExecutedContext.Request.Content.ReadAsStringAsync().Result;
-                var encrypt_packet = JsonConvert.DeserializeObject<Packet>(raw);
-
-                var response = actionExecutedContext.Response;
-                if (response != null && response.IsSuccessStatusCode)
-                {
-                    // 1. 讀取 Action 回傳的物件（已被 Web API 序列化成物件）
-                    //    這裡用 ReadAsAsync<object>，也可以改成具體型別
-                    var originalObj = response.Content
-                                              .ReadAsAsync<object>(new[] { new JsonMediaTypeFormatter() })
-                                              .Result;
-
-                    // 2. 加密成 Packet
-                    var packet = Global.TwoWayCryp.Encrypt(encrypt_packet.PublicKey, originalObj);
-
-                    // 3. 將 Response.Content 換成新的 Packet JSON
-                    actionExecutedContext.Response.Content =
-                        new ObjectContent<Packet>(
-                            packet,
-                            new JsonMediaTypeFormatter()
-                        );
-                }
-            }
-            catch
-            {
-                throw new HttpException(403, "TWEncrypt Error");
+                context.Response.Content = new ObjectContent<Packet>(encPkt, new JsonMediaTypeFormatter());
             }
         }
     }
@@ -278,7 +241,7 @@ namespace BackEnd.FilterAttribute
 namespace BackEnd.Handler
 {
     /// <summary>
-    /// 
+    /// 緩衝讀取處理器（保留原本實作即可）
     /// </summary>
     public class BufferHandler : DelegatingHandler
     {
@@ -291,8 +254,7 @@ namespace BackEnd.Handler
         protected override async Task<HttpResponseMessage> SendAsync( HttpRequestMessage request, CancellationToken cancellationToken)
         {
             await request.Content.LoadIntoBufferAsync();
-            var response = await base.SendAsync(request, cancellationToken);
-            return response;
+            return await base.SendAsync(request, cancellationToken);
         }
     }
 
