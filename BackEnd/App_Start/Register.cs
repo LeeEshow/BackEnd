@@ -1,5 +1,4 @@
 ﻿using BackEnd.Controllers;
-using BackEnd.Struct;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -12,14 +11,50 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
-using System.Web.Http;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
+using ToolBox.WEB.Struct;
 
 namespace BackEnd.FilterAttribute
 {
     // 參考網址 https://ithelp.ithome.com.tw/articles/10198206
     // 參考網址 https://ronsun.github.io/content/20180923-filters-of-webapi2.html
+
+    #region 統一例外處理
+    /// <summary>
+    /// Back-End 例外統一處理特性
+    /// </summary>
+    public class ExceptionFilter : ExceptionFilterAttribute
+    {
+        /// <summary>
+        /// 方法例外時
+        /// </summary>
+        /// <param name="actionExecutedContext"></param>
+        public override void OnException(HttpActionExecutedContext actionExecutedContext)
+        {
+            int StatusCode = 500;
+            string message = "Server Error";
+            if (actionExecutedContext.Exception is HttpException)
+            {
+                StatusCode = (actionExecutedContext.Exception as HttpException).GetHttpCode();
+                message = actionExecutedContext.Exception.Message;
+            }
+
+            actionExecutedContext.Response = new HttpResponseMessage()
+            {
+                StatusCode = (HttpStatusCode)StatusCode,
+                //ReasonPhrase = actionExecutedContext.Exception.Message,
+                Content = new StringContent
+                (
+                    JsonConvert.SerializeObject(message),
+                    Encoding.UTF8,
+                    "application/json"
+                )
+            };
+        }
+    }
+    #endregion 統一例外處理
+
 
     #region 網域檢查
     /// <summary>
@@ -57,7 +92,7 @@ namespace BackEnd.FilterAttribute
     #endregion 網域檢查
 
 
-    #region Token 驗證
+    #region Token 認證
     /// <summary>
     /// Token 驗證
     /// </summary>
@@ -69,8 +104,8 @@ namespace BackEnd.FilterAttribute
         /// <param name="actionContext"></param>
         public override void OnActionExecuting(HttpActionContext actionContext)
         {
-            if (actionContext.ActionDescriptor.GetCustomAttributes<AllowAnonymousAttribute>().Any()
-                || actionContext.ControllerContext.ControllerDescriptor.GetCustomAttributes<AllowAnonymousAttribute>().Any())
+            if (actionContext.ActionDescriptor.GetCustomAttributes<NotTokenAttribute>().Any() || 
+                actionContext.ControllerContext.ControllerDescriptor.GetCustomAttributes<NotTokenAttribute>().Any())
                 return;
 
             #region 授權碼驗證
@@ -103,102 +138,162 @@ namespace BackEnd.FilterAttribute
             }
             #endregion 授權碼驗證        
         }
-    }
-    #endregion Token 驗證
 
-
-    #region 統一例外處理
-    /// <summary>
-    /// Back-End 例外統一處理特性
-    /// </summary>
-    public class ExceptionFilter : ExceptionFilterAttribute
-    {
         /// <summary>
-        /// 方法例外時
+        /// API 調用後觸發
         /// </summary>
         /// <param name="actionExecutedContext"></param>
-        public override void OnException(HttpActionExecutedContext actionExecutedContext)
+        public override void OnActionExecuted(HttpActionExecutedContext actionExecutedContext)
         {
-            int StatusCode = 500;
-            if (actionExecutedContext.Exception is HttpException)
+            #region 授權碼更新
+            if (actionExecutedContext.Response.IsSuccessStatusCode)
             {
-                StatusCode = (actionExecutedContext.Exception as HttpException).GetHttpCode();
-            }
+                if (actionExecutedContext.Request.Headers.Authorization != null)
+                {
+                    var Token = new JWTToken().Decrypt(actionExecutedContext.Request.Headers.Authorization.Parameter);
 
-            actionExecutedContext.Response = new HttpResponseMessage()
-            {
-                StatusCode = (HttpStatusCode)StatusCode,
-                ReasonPhrase = actionExecutedContext.Exception.Message,
-                Content = new StringContent
-                (
-                    JsonConvert.SerializeObject(new Response 
-                    { 
-                        Token = null, 
-                        Data = actionExecutedContext.Exception.Message
-                    }),
-                    Encoding.UTF8,
-                    "application/json"
-                )
-            };
+                    actionExecutedContext.Response.Headers.Add("Token", Token.Refresh());
+                    actionExecutedContext.Response.Headers.CacheControl = new CacheControlHeaderValue
+                    {
+                        Public = true,
+                        MaxAge = TimeSpan.FromMinutes(JWTToken.ExpMinutes),
+                        MustRevalidate = true
+                    };
+                }
+            }
+            #endregion 授權碼更新
         }
     }
-    #endregion 統一例外處理
+
+    /// <summary>
+    /// 不執行 雙向非對稱性加密
+    /// </summary>
+    public class NotTokenAttribute : Attribute
+    {
+
+    }
+    #endregion Token 認證
+
+
+    #region 雙向加密/解密
+    /// <summary>
+    /// 雙向加密/解密
+    /// </summary>
+    public class TWEncryptVerify : ActionFilterAttribute
+    {
+        /// <summary>
+        /// API 調用前觸發
+        /// </summary>
+        /// <param name="actionContext"></param>
+        public override void OnActionExecuting(HttpActionContext actionContext)
+        {
+            try
+            {
+                if (actionContext.ActionDescriptor.GetCustomAttributes<NotEncryptAttribute>().Any() ||
+                    actionContext.ControllerContext.ControllerDescriptor.GetCustomAttributes<NotEncryptAttribute>().Any() ||
+                    actionContext.Request.Method.ToString() == "GET")
+                {
+                    return;
+                }
+
+                // 1. 讀取整個 Request Body（JSON 格式的 Packet）
+                var raw = actionContext.Request.Content.ReadAsStringAsync().Result;
+                var packet = JsonConvert.DeserializeObject<Packet>(raw);
+
+                // 2. 解密：取得原始的 JSON 字串
+                var data = Global.TwoWayCryp.Decrypt(packet);
+
+                // 3. 反序列化成 Action 的 DTO 參數
+                //    這裡假設 Action 只有一個參數，且名稱與型別可動態取得
+                var binding = actionContext.ActionDescriptor.ActionBinding.ParameterBindings[0];
+                var paramType = binding.Descriptor.ParameterType;
+                var dto = JsonConvert.DeserializeObject(data, paramType);
+
+                // 4. 用解好的 DTO 覆寫原本的 ActionArguments
+                actionContext.ActionArguments[binding.Descriptor.ParameterName] = dto;
+            }
+            catch
+            {
+                throw new HttpException(403, "TWEncrypt Error");
+            }
+        }
+
+        /// <summary>
+        /// API 調用後觸發
+        /// </summary>
+        /// <param name="actionExecutedContext"></param>
+        public override void OnActionExecuted(HttpActionExecutedContext actionExecutedContext)
+        {
+            try
+            {
+                if (actionExecutedContext.ActionContext.ActionDescriptor.GetCustomAttributes<NotEncryptAttribute>().Any() ||
+                    actionExecutedContext.ActionContext.ControllerContext.ControllerDescriptor.GetCustomAttributes<NotEncryptAttribute>().Any() ||
+                    actionExecutedContext.Request.Method.ToString() == "GET")
+                {
+                    return;
+                }
+
+                var raw = actionExecutedContext.Request.Content.ReadAsStringAsync().Result;
+                var encrypt_packet = JsonConvert.DeserializeObject<Packet>(raw);
+
+                var response = actionExecutedContext.Response;
+                if (response != null && response.IsSuccessStatusCode)
+                {
+                    // 1. 讀取 Action 回傳的物件（已被 Web API 序列化成物件）
+                    //    這裡用 ReadAsAsync<object>，也可以改成具體型別
+                    var originalObj = response.Content
+                                              .ReadAsAsync<object>(new[] { new JsonMediaTypeFormatter() })
+                                              .Result;
+
+                    // 2. 加密成 Packet
+                    var packet = Global.TwoWayCryp.Encrypt(encrypt_packet.PublicKey, originalObj);
+
+                    // 3. 將 Response.Content 換成新的 Packet JSON
+                    actionExecutedContext.Response.Content =
+                        new ObjectContent<Packet>(
+                            packet,
+                            new JsonMediaTypeFormatter()
+                        );
+                }
+            }
+            catch
+            {
+                throw new HttpException(403, "TWEncrypt Error");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 不執行 雙向非對稱性加密
+    /// </summary>
+    public class NotEncryptAttribute : Attribute
+    {
+
+    }
+    #endregion 雙向加密/解密
+
 
 }
 
 namespace BackEnd.Handler
 {
     /// <summary>
-    /// 統一 Response 結構
+    /// 
     /// </summary>
-    public class ResponseHandler : DelegatingHandler
+    public class BufferHandler : DelegatingHandler
     {
-        #region
         /// <summary>
         /// 
         /// </summary>
         /// <param name="request"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync( HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            // 先呼叫內層管線（Controller）
+            await request.Content.LoadIntoBufferAsync();
             var response = await base.SendAsync(request, cancellationToken);
-
-            // 只包 2xx 
-            if (response.IsSuccessStatusCode)
-            {
-                string token_str = null;
-                if (request.Headers.Authorization != null) 
-                {
-                    var Token = new JWTToken().Decrypt(request.Headers.Authorization.Parameter);
-                    token_str = Token.Refresh();
-                }
-
-                // 包裝成統一格式
-                var wrapper = new Response
-                {
-                    Token = token_str,
-                    Data = await response.Content.ReadAsAsync<object>(cancellationToken)
-                };
-
-                // 設定新 Content
-                response.Content = new ObjectContent<Response>(
-                    wrapper,
-                    new JsonMediaTypeFormatter());
-
-                // **在這裡設定 Cache-Control**
-                response.Headers.CacheControl = new CacheControlHeaderValue
-                {
-                    Public = true,
-                    MaxAge = TimeSpan.FromMinutes(10),
-                    MustRevalidate = true
-                };
-            }
-
             return response;
         }
-        #endregion
     }
 
 }

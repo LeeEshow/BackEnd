@@ -8,18 +8,16 @@ using System.Text;
 using System.Web;
 using System.Web.Http;
 using System.Web.Http.Cors;
-using BackEnd.Struct;
-using System.Xml;
 using ToolBox.WEB;
 using ToolBox.WEB.Struct;
-using System.Net.Http.Headers;
+using BackEnd.FilterAttribute;
 
 namespace BackEnd.Controllers
 {
     /// <summary>
     /// 
     /// </summary>
-    [AllowAnonymous]
+    [NotToken]
     [EnableCors("*", "*", "*")]
     [RoutePrefix("Authorize"), OpenApiTag("客戶端身分驗證", Description = "請登入取得授權驗證碼後，點擊界面上【Authorize】Button 進行設定")]
     public class AuthorizeController : ApiController
@@ -28,32 +26,30 @@ namespace BackEnd.Controllers
         /// 取得伺服端公鑰
         /// </summary>
         /// <returns></returns>
-        [HttpGet, Route("GetKey")]
+        [HttpGet, Route("GetKey"), NotEncrypt]
         public object GetKey()
         {
             return Global.TwoWayCryp.PublicKey;
         }
 
         /// <summary>
-        /// 登入，取得授權碼
+        /// 登入，明碼驗證
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        [HttpPost, Route("VerifyID")]
+        [HttpPost, Route("VerifyID"), NotEncrypt]
         public object VerifyID([FromBody] User_Info obj)
         {
             try
             {
                 // 取得 Info 後執行驗證
-
-                base.Request.Headers.Authorization = new AuthenticationHeaderValue(
-                    "Token", new JWTToken().Create(
+                var token = new JWTToken().Create(
                         obj.ID,
                         DateTime.Now.ToCommonly(),
                         Request.GetUserIP()
-                    ));
+                    );
 
-                return "驗證完成";
+                return token;
             }
             catch (Exception ex)
             {
@@ -62,26 +58,23 @@ namespace BackEnd.Controllers
         }
 
         /// <summary>
-        /// 登入，取得授權碼 (雙向加密)
+        /// 登入，加密驗證
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
         [HttpPost, Route("EncryptVerifyID")]
-        public object EncryptVerifyID([FromBody] Packet obj)
+        public object EncryptVerifyID([FromBody] User_Info obj)
         {
             try
             {
-                var Info = Global.TwoWayCryp.Decrypt<User_Info>(obj);
                 // 取得 Info 後執行驗證
-
-                base.Request.Headers.Authorization = new AuthenticationHeaderValue(
-                    "Token", new JWTToken().Create(
-                        Info.ID,
+                var token = new JWTToken().Create(
+                        obj.ID,
                         DateTime.Now.ToCommonly(),
                         Request.GetUserIP()
-                    ));
+                    );
 
-                return "驗證完成";
+                return token;
             }
             catch (Exception ex)
             {
@@ -145,7 +138,7 @@ namespace BackEnd.Controllers
         /// <summary>
         /// 有效時間
         /// </summary>
-        private int ExpMinutes = 10;
+        internal static int ExpMinutes = 10;
         #endregion 屬性
 
 

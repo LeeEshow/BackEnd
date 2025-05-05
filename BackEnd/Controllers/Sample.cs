@@ -1,15 +1,12 @@
 ﻿using System.Web.Http;
-using NSwag.Annotations;
 using System;
 using BackEnd.Struct;
-using System.Net;
-using System.Net.Http;
 using ToolBox.WEB.Struct;
 using ToolBox.WEB;
 using Newtonsoft.Json;
 using System.Web.Http.Cors;
-using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using BackEnd.FilterAttribute;
 
 namespace BackEnd.Controllers
 {
@@ -36,7 +33,7 @@ namespace BackEnd.Controllers
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        [HttpPost, Route("POST")]
+        [HttpPost, Route("POST"), NotEncrypt]
         public object POST([FromBody] Response obj)
         {
             return obj.Data + ", " + DateTime.Now.ToCommonly();
@@ -48,36 +45,34 @@ namespace BackEnd.Controllers
         /// <param name="obj"></param>
         /// <returns></returns>
         [HttpPost, Route("EncryptPOST")]
-        public object EncryptPOST([FromBody] Packet obj)
+        public object EncryptPOST([FromBody] AuthorizeController.User_Info obj)
         {
-            var value = Global.TwoWayCryp.Decrypt(obj);
-            JToken jToken = JToken.Parse(value);
-            return Global.TwoWayCryp.Encrypt(obj.PublicKey, new 
+            return new
             {
-                Value = jToken,
+                Value = obj,
                 Text = "被你找到秘密了"
-            });
+            };
         }
 
         private void EncryptPOST_Client_Sample()
         {
             TwoWayCryp Client = new TwoWayCryp();
-            var server_key = RESTful.Get<Response>(@"https://localhost:44388/Authorize/GetKey");
+            var server_key = RESTful.Get(@"https://localhost:44388/Authorize/GetKey");
             var Info = new { ID = "Eshow", Password = "A123456" };
 
-            var res = RESTful.Post<Response>("https://localhost:44388/Authorize/VerifyID", Info);
+            var token = RESTful.Post<string>("https://localhost:44388/Authorize/VerifyID", Info);
             if (!RESTful.Client.DefaultRequestHeaders.Contains("Authorization"))
             {
-                RESTful.Client.DefaultRequestHeaders.Add("Authorization", "Token " + res.Token);
+                RESTful.Client.DefaultRequestHeaders.Add("Authorization", "Token " + token);
             }
 
             //var data = RESTful.Get(@"https://localhost:44388/Sample/GET?Value=444");
 
-            var packet = Client.Encrypt(server_key.Data.ToString(), new { A = "Test", B = 123456789 });
-            var data = RESTful.Post<Response>("https://localhost:44388/Sample/EncryptPOST", packet);
-            packet = JsonConvert.DeserializeObject<Packet>(data.Data.ToString());
+            var packet = Client.Encrypt(server_key, new { ID = "123", Name = "456" });
+            Console.WriteLine(packet.ToJsonString());
+            var data = RESTful.Post<Packet>("https://localhost:44388/Sample/EncryptPOST", packet);
 
-            var str = Client.Decrypt(packet);
+            var str = Client.Decrypt(data);
         }
     }
 }

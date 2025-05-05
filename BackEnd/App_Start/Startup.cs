@@ -17,10 +17,11 @@ namespace Web_API
         public static void Register(HttpConfiguration config)
         {
             // 1. 全域註冊
-            config.MessageHandlers.Insert(0, new ResponseHandler());
+            config.MessageHandlers.Add(new BufferHandler());
+            config.Filters.Add(new ExceptionFilter());
             config.Filters.Add(new DomainFilter());
             config.Filters.Add(new TokenVerify());
-            config.Filters.Add(new ExceptionFilter());
+            config.Filters.Add(new TWEncryptVerify());
 
             // Web API 設定和服務
             config.EnableCors();
