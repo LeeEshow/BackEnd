@@ -6,16 +6,11 @@ using System.Web;
 
 namespace BackEnd.Struct
 {
-    #region Response
     /// <summary>
     /// API 統一回覆結構
     /// </summary>
     public struct Response
     {
-        /// <summary>
-        /// 訊息
-        /// </summary>
-        //public string Message { get; set; }
         /// <summary>
         /// 授權
         /// </summary>
@@ -25,6 +20,5 @@ namespace BackEnd.Struct
         /// </summary>
         public object Data { get; set; }
     }
-    #endregion Response
 
 }

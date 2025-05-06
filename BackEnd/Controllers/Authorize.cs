@@ -28,7 +28,7 @@ namespace BackEnd.Controllers
         [HttpGet, Route("GetKey"), NotEncrypt]
         public object GetKey()
         {
-            return Global.TwoWayCryp.PublicKey;
+            return Global.Hedgehog.PublicKey;
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace BackEnd.Controllers
         /// <summary>
         /// 對稱加密的固定加密 Key 值
         /// </summary>
-        private static readonly string secretKey = new TwoWayCryp().PublicKey.ToString();
+        private static readonly string secretKey = new Hedgehog().PublicKey.ToString();
         /// <summary>
         /// 有效時間
         /// </summary>

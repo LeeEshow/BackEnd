@@ -202,7 +202,7 @@ namespace BackEnd.FilterAttribute
             var packet = JsonConvert.DeserializeObject<Packet>(raw);
 
             // 2. 解密並反序列化 DTO
-            var json = Global.TwoWayCryp.Decrypt(packet);
+            var json = Global.Hedgehog.Decrypt(packet);
             var param = context.ActionDescriptor.ActionBinding.ParameterBindings.First();
             var dto = JsonConvert.DeserializeObject(json, param.Descriptor.ParameterType);
             context.ActionArguments[param.Descriptor.ParameterName] = dto;
@@ -226,7 +226,7 @@ namespace BackEnd.FilterAttribute
                 // 加密為 Packet
                 var rawReq = await context.Request.Content.ReadAsStringAsync();
                 var reqPkt = JsonConvert.DeserializeObject<Packet>(rawReq);
-                var encPkt = Global.TwoWayCryp.Encrypt(reqPkt.PublicKey, original);
+                var encPkt = Global.Hedgehog.Encrypt(reqPkt.PublicKey, original);
 
                 context.Response.Content = new ObjectContent<Packet>(encPkt, new JsonMediaTypeFormatter());
             }

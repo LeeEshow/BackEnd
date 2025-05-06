@@ -11,7 +11,7 @@ internal static class Global
     /// <summary>
     /// 雙向加密物件
     /// </summary>
-    internal static TwoWayCryp TwoWayCryp = new TwoWayCryp(2048);
+    internal static Hedgehog Hedgehog = new Hedgehog(2048);
 
     /// <summary>
     /// 取得用戶IP

@@ -56,23 +56,33 @@ namespace BackEnd.Controllers
 
         private void EncryptPOST_Client_Sample()
         {
-            TwoWayCryp Client = new TwoWayCryp();
-            var server_key = RESTful.Get(@"https://localhost:44388/Authorize/GetKey");
-            var Info = new { ID = "Eshow", Password = "A123456" };
-
-            var token = RESTful.Post<string>("https://localhost:44388/Authorize/VerifyID", Info);
-            if (!RESTful.Client.DefaultRequestHeaders.Contains("Authorization"))
+            Hedgehog Client = new Hedgehog();
+            // 建立 RestClient，設定 BaseAddress 與逾時
+            using (var api = new RESTful("https://localhost:44388/", TimeSpan.FromSeconds(30)))
             {
-                RESTful.Client.DefaultRequestHeaders.Add("Authorization", "Token " + token);
+                // 1. 取得 Server Key
+                string serverKey = api.GetAsync("Authorize/GetKey").Result;
+
+                // 2. 登入以取得 Token
+                var credentials = new { ID = "Eshow", Password = "A123456" };
+                string token = api.PostAsync<string>("Authorize/VerifyID", credentials).Result;
+
+                // 3. 設定 Authorization Header
+                if (!api.Client.DefaultRequestHeaders.Contains("Authorization"))
+                {
+                    api.Client.DefaultRequestHeaders.Add("Authorization", $"Token {token}");
+                }
+
+                // 4. 加密封包
+                var packet = Client.Encrypt(serverKey, new { ID = "123", Name = "456" });
+
+                // 5. 呼叫加密後的 POST API，並反序列化為 Packet
+                Packet data = api.PostAsync<Packet>("Sample/EncryptPOST", packet).Result;
+
+                // 6. 解密回傳的 Packet
+                var result = Client.Decrypt(data);
+                Console.WriteLine(result.ToJsonString());
             }
-
-            //var data = RESTful.Get(@"https://localhost:44388/Sample/GET?Value=444");
-
-            var packet = Client.Encrypt(server_key, new { ID = "123", Name = "456" });
-            Console.WriteLine(packet.ToJsonString());
-            var data = RESTful.Post<Packet>("https://localhost:44388/Sample/EncryptPOST", packet);
-
-            var str = Client.Decrypt(data);
         }
     }
 }
