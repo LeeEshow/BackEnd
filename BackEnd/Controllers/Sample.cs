@@ -22,7 +22,7 @@ namespace BackEnd.Controllers
         /// </summary>
         /// <param name="Value"></param>
         /// <returns></returns>
-        [HttpGet, Route("GET")]
+        [HttpGet, Route("GET"), NotEncrypt]
         public object GET([FromUri] double Value)
         {
             return Value * 2;
@@ -45,7 +45,7 @@ namespace BackEnd.Controllers
         /// <param name="obj"></param>
         /// <returns></returns>
         [HttpPost, Route("EncryptPOST")]
-        public object EncryptPOST([FromBody] AuthorizeController.User_Info obj)
+        public object EncryptPOST([FromBody] object obj)
         {
             return new
             {

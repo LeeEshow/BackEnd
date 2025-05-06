@@ -59,6 +59,7 @@ namespace BackEnd.FilterAttribute
     {
         private static readonly HashSet<string> AllowedDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
+            "https://localhost:44388",
             "localhost:44388",
             "localhost:3000",
             // 未來可改從 ConfigurationManager.AppSettings["AllowedDomains"] 讀取
@@ -118,7 +119,11 @@ namespace BackEnd.FilterAttribute
         public override async Task OnActionExecutingAsync(HttpActionContext context, CancellationToken cancellationToken)
         {
             // 標記 NotToken 就跳過
-            if (HasAttribute<NotTokenAttribute>(context)) return;
+            if (HasAttribute<NotTokenAttribute>(context)) 
+            {
+                await base.OnActionExecutingAsync(context, cancellationToken);
+                return;
+            };
 
             var req = context.Request;
             if (req.Headers.Authorization == null || req.Headers.Authorization.Scheme != "Token")
@@ -142,6 +147,8 @@ namespace BackEnd.FilterAttribute
         /// <param name="cancellationToken"></param>
         public override async Task OnActionExecutedAsync(HttpActionExecutedContext context, CancellationToken cancellationToken)
         {
+            await base.OnActionExecutedAsync(context, cancellationToken);
+
             // 成功回應才刷新 Token
             var req = context.Request;
             if (context.Response.IsSuccessStatusCode && req.Headers.Authorization != null)
