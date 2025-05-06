@@ -44,7 +44,7 @@ namespace BackEnd.Controllers
                 // 取得 Info 後執行驗證
                 var token = new JWTToken().Create(
                         obj.ID,
-                        DateTime.Now.ToCommonly(),
+                        DateTime.Now.yyyyMMddHHmmss(),
                         Request.GetUserIP()
                     );
 
@@ -69,7 +69,7 @@ namespace BackEnd.Controllers
                 // 取得 Info 後執行驗證
                 var token = new JWTToken().Create(
                         obj.ID,
-                        DateTime.Now.ToCommonly(),
+                        DateTime.Now.yyyyMMddHHmmss(),
                         Request.GetUserIP()
                     );
 
