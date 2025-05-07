@@ -10,6 +10,7 @@ using System.Web.Http;
 using System.Web.Http.Cors;
 using ToolBox.WEB;
 using BackEnd.FilterAttribute;
+using BackEnd.Struct;
 
 namespace BackEnd.Controllers
 {
@@ -22,7 +23,7 @@ namespace BackEnd.Controllers
     public class AuthorizeController : ApiController
     {
         /// <summary>
-        /// 取得伺服端公鑰
+        /// 取得伺服端公鑰 (No Authorize verification and no two-way asymmetric encryption required)
         /// </summary>
         /// <returns></returns>
         [HttpGet, Route("GetKey"), NotEncrypt]
@@ -32,7 +33,7 @@ namespace BackEnd.Controllers
         }
 
         /// <summary>
-        /// 登入，明碼驗證
+        /// 登入，明碼驗證 (No Authorize verification and no two-way asymmetric encryption required)
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
@@ -42,11 +43,13 @@ namespace BackEnd.Controllers
             try
             {
                 // 取得 Info 後執行驗證
-                var token = new JWTToken().Create(
-                        obj.ID,
-                        DateTime.Now.yyyyMMddHHmmss(),
-                        Request.GetUserIP()
-                    );
+                var token = new Client 
+                {
+                    ID = obj.ID,
+                    Name = obj.ID + "Test",
+                    Fingerprint = base.Request.GetDeviceFingerprint(),
+                    
+                }.CreateToken();
 
                 return token;
             }
@@ -57,7 +60,7 @@ namespace BackEnd.Controllers
         }
 
         /// <summary>
-        /// 登入，加密驗證
+        /// 登入，加密驗證 (No Authorize verification)
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
@@ -67,11 +70,13 @@ namespace BackEnd.Controllers
             try
             {
                 // 取得 Info 後執行驗證
-                var token = new JWTToken().Create(
-                        obj.ID,
-                        DateTime.Now.yyyyMMddHHmmss(),
-                        Request.GetUserIP()
-                    );
+                var token = new Client
+                {
+                    ID = obj.ID,
+                    Name = obj.ID + "Test",
+                    Fingerprint = base.Request.GetDeviceFingerprint(),
+
+                }.CreateToken();
 
                 return token;
             }
@@ -105,7 +110,7 @@ namespace BackEnd.Controllers
     /// <summary>
     /// 客戶端授權碼
     /// </summary>
-    internal class JWTToken
+    internal class Client
     {
         #region 屬性
         /// <summary>
@@ -117,9 +122,9 @@ namespace BackEnd.Controllers
         /// </summary>
         public string Name { get; set; }
         /// <summary>
-        /// User/Client IP
+        /// Device-Fingerprint (前端用 Canvas/API 生成一組 Hash)
         /// </summary>
-        public string IP { get; set; }
+        public string Fingerprint { get; set; }
         /// <summary>
         /// 認證有效時間
         /// </summary>
@@ -127,8 +132,7 @@ namespace BackEnd.Controllers
         /// <summary>
         /// 登入時間
         /// </summary>
-        public DateTime Login_Time { get => Login_Time_; }
-        private DateTime Login_Time_;
+        public DateTime Login_Time { get; set; }
 
         /// <summary>
         /// 對稱加密的固定加密 Key 值
@@ -146,13 +150,10 @@ namespace BackEnd.Controllers
         /// 建立授權碼
         /// </summary>
         /// <returns></returns>
-        public string Create(string ID, string Name, string IP)
+        public string CreateToken()
         {
-            this.ID = ID;
-            this.Name = Name;
-            this.IP = IP;
             this.Exp = DateTime.Now.AddMinutes(ExpMinutes);
-            this.Login_Time_ = DateTime.Now.Clone();
+            this.Login_Time = DateTime.Now.Clone();
 
             var token = JWT.Encode(this.ToDictionary(), Encoding.UTF8.GetBytes(secretKey), JwsAlgorithm.HS512);
             return token;
@@ -163,11 +164,11 @@ namespace BackEnd.Controllers
         /// </summary>
         /// <param name="token"></param>
         /// <returns></returns>
-        public JWTToken Decrypt(string token)
+        public Client Decrypt(string token)
         {
             try
             {
-                return JWT.Decode<JWTToken>(token, Encoding.UTF8.GetBytes(secretKey), JwsAlgorithm.HS512);
+                return JWT.Decode<Client>(token, Encoding.UTF8.GetBytes(secretKey), JwsAlgorithm.HS512);
             }
             catch
             {
@@ -184,7 +185,6 @@ namespace BackEnd.Controllers
             this.Exp = DateTime.Now.AddMinutes(ExpMinutes);
             return JWT.Encode(this.ToDictionary(), Encoding.UTF8.GetBytes(secretKey), JwsAlgorithm.HS512);
         }
-
 
         private Dictionary<string, string> ToDictionary()
         {

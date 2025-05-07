@@ -129,12 +129,16 @@ namespace BackEnd.FilterAttribute
             if (req.Headers.Authorization == null || req.Headers.Authorization.Scheme != "Token")
                 throw new HttpException((int)HttpStatusCode.Unauthorized, "Login first");
 
-            var jwt = new JWTToken().Decrypt(req.Headers.Authorization.Parameter);
+            if(string.IsNullOrEmpty(req.Headers.Authorization.Parameter))
+                throw new HttpException((int)HttpStatusCode.Unauthorized, "Loss token");
+
+            var jwt = new Client().Decrypt(req.Headers.Authorization.Parameter);
             if (jwt == null)
                 throw new HttpException((int)HttpStatusCode.Unauthorized, "Authorization is Invalid, please login again");
 
-            if (jwt.IP != req.GetUserIP())
-                throw new HttpException((int)HttpStatusCode.Unauthorized, "Authorization's IP not match, please login again");
+            var dpNow = req.GetDeviceFingerprint();
+            if (jwt.Fingerprint != dpNow)
+                throw new HttpException((int)HttpStatusCode.Unauthorized, "Device-Fingerprint not match, please login again");
 
             if (jwt.Exp < DateTime.UtcNow)
                 throw new HttpException((int)HttpStatusCode.Unauthorized, "Authorization expired, please login again");
@@ -153,14 +157,14 @@ namespace BackEnd.FilterAttribute
             var req = context.Request;
             if (context.Response.IsSuccessStatusCode && req.Headers.Authorization != null)
             {
-                var jwt = new JWTToken().Decrypt(req.Headers.Authorization.Parameter);
+                var jwt = new Client().Decrypt(req.Headers.Authorization.Parameter);
                 var newToken = jwt.Refresh();
 
                 context.Response.Headers.Add("Token", newToken);
                 context.Response.Headers.CacheControl = new CacheControlHeaderValue
                 {
                     Public = true,
-                    MaxAge = TimeSpan.FromMinutes(JWTToken.ExpMinutes),
+                    MaxAge = TimeSpan.FromMinutes(Client.ExpMinutes),
                     MustRevalidate = true
                 };
             }
@@ -215,8 +219,7 @@ namespace BackEnd.FilterAttribute
         /// <param name="cancellationToken"></param>
         public override async Task OnActionExecutedAsync(HttpActionExecutedContext context, CancellationToken cancellationToken)
         {
-            if (HasAttribute<NotEncryptAttribute>(context.ActionContext) ||
-                context.Request.Method == HttpMethod.Get)
+            if (HasAttribute<NotEncryptAttribute>(context.ActionContext) || context.Request.Method == HttpMethod.Get)
                 return;
 
             if (context.Response != null && context.Response.IsSuccessStatusCode)
