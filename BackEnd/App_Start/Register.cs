@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using System.Web.Http;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
 using ToolBox.WEB.Struct;
@@ -41,6 +42,11 @@ namespace BackEnd.FilterAttribute
             {
                 code = (HttpStatusCode)httpEx.GetHttpCode();
                 msg = httpEx.Message;
+            }
+            else if (context.Exception is HttpResponseException respEx)
+            {
+                code = respEx.Response.StatusCode;
+                msg = respEx.Response.ReasonPhrase;
             }
 
             // 建議改用 CreateErrorResponse 可支援更多格式
@@ -127,21 +133,21 @@ namespace BackEnd.FilterAttribute
 
             var req = context.Request;
             if (req.Headers.Authorization == null || req.Headers.Authorization.Scheme != "Token")
-                throw new HttpException((int)HttpStatusCode.Unauthorized, "Login first");
+                throw new HttpException(401, "Login first");
 
             if(string.IsNullOrEmpty(req.Headers.Authorization.Parameter))
-                throw new HttpException((int)HttpStatusCode.Unauthorized, "Loss token");
+                throw new HttpException(401, "Loss token");
 
             var jwt = new Client().Decrypt(req.Headers.Authorization.Parameter);
             if (jwt == null)
-                throw new HttpException((int)HttpStatusCode.Unauthorized, "Authorization is Invalid, please login again");
+                throw new HttpException(401, "Authorization is Invalid, please login again");
 
             var dpNow = req.GetDeviceFingerprint();
             if (jwt.Fingerprint != dpNow)
-                throw new HttpException((int)HttpStatusCode.Unauthorized, "Device-Fingerprint not match, please login again");
+                throw new HttpException(401, "Device-Fingerprint not match, please login again");
 
             if (jwt.Exp < DateTime.UtcNow)
-                throw new HttpException((int)HttpStatusCode.Unauthorized, "Authorization expired, please login again");
+                throw new HttpException(401, "Authorization expired, please login again");
         }
 
         /// <summary>
@@ -198,18 +204,30 @@ namespace BackEnd.FilterAttribute
         /// <param name="cancellationToken"></param>
         public override async Task OnActionExecutingAsync(HttpActionContext context, CancellationToken cancellationToken)
         {
-            if (HasAttribute<NotEncryptAttribute>(context) || context.Request.Method == HttpMethod.Get)
-                return;
+            try
+            {
+                if (HasAttribute<NotEncryptAttribute>(context) || context.Request.Method == HttpMethod.Get)
+                    return;
 
-            // 1. 讀取 Packet
-            var raw = await context.Request.Content.ReadAsStringAsync();
-            var packet = JsonConvert.DeserializeObject<Packet>(raw);
+                // 1. 讀取 Packet
+                var raw = await context.Request.Content.ReadAsStringAsync();
+                var packet = JsonConvert.DeserializeObject<Packet>(raw);
+                if (packet?.Ciphertext == null)
+                    throw new InvalidOperationException("Missing ciphertext");
 
-            // 2. 解密並反序列化 DTO
-            var json = Global.Hedgehog.Decrypt(packet);
-            var param = context.ActionDescriptor.ActionBinding.ParameterBindings.First();
-            var dto = JsonConvert.DeserializeObject(json, param.Descriptor.ParameterType);
-            context.ActionArguments[param.Descriptor.ParameterName] = dto;
+                // 2. 解密並反序列化 DTO
+                var json = Global.Hedgehog.Decrypt(packet);
+                var param = context.ActionDescriptor.ActionBinding.ParameterBindings.First();
+                var dto = JsonConvert.DeserializeObject(json, param.Descriptor.ParameterType);
+                context.ActionArguments[param.Descriptor.ParameterName] = dto;
+            }
+            catch
+            {
+                // **短路**：解密任何例外都當 403 回
+                context.Response = context.Request.CreateErrorResponse(
+                        HttpStatusCode.Forbidden, "Decryption verification failed, This channel is two-way encrypted");
+                return;  // 跳過後續 action 和 ExceptionFilter
+            }
         }
 
         /// <summary>
