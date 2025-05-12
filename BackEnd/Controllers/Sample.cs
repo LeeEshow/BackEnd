@@ -34,9 +34,9 @@ namespace BackEnd.Controllers
         /// <param name="obj"></param>
         /// <returns></returns>
         [HttpPost, Route("POST"), NotEncrypt]
-        public object POST([FromBody] Response obj)
+        public object POST([FromBody] Struct obj)
         {
-            return obj.Data + ", " + DateTime.Now.yyyyMMddHHmmss();
+            return obj.Message + ", " + DateTime.Now.yyyyMMddHHmmss();
         }
 
         /// <summary>
@@ -81,5 +81,19 @@ namespace BackEnd.Controllers
             var result = Client.Decrypt(data);
             Console.WriteLine(result.ToJsonString());
         }
+
+        #region struct
+        /// <summary>
+        /// 
+        /// </summary>
+        public struct Struct
+        {
+            /// <summary>
+            /// 
+            /// </summary>
+            public string Message { get; set; }
+        }
+        #endregion struct
+
     }
 }

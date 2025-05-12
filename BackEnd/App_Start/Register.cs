@@ -133,7 +133,7 @@ namespace BackEnd.FilterAttribute
 
             var req = context.Request;
             if (req.Headers.Authorization == null || req.Headers.Authorization.Scheme != "Token")
-                throw new HttpException(401, "Login first");
+                throw new HttpException(401, "Loss token");
 
             if(string.IsNullOrEmpty(req.Headers.Authorization.Parameter))
                 throw new HttpException(401, "Loss token");
