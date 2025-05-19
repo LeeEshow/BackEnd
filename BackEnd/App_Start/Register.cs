@@ -166,7 +166,7 @@ namespace BackEnd.FilterAttribute
                 var jwt = new Client().Decrypt(req.Headers.Authorization.Parameter);
                 var newToken = jwt.Refresh();
 
-                context.Response.Headers.Add("Token", newToken);
+                context.Response.Headers.Add("Echo", newToken);
                 context.Response.Headers.CacheControl = new CacheControlHeaderValue
                 {
                     Public = true,

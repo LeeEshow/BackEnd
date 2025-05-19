@@ -19,7 +19,7 @@ namespace BackEnd.Controllers
     /// </summary>
     [NotToken]
     [EnableCors("*", "*", "*")]
-    [RoutePrefix("Authorize"), OpenApiTag("客戶端身分驗證", Description = "請登入取得授權驗證碼後，點擊界面上【Authorize】Button 進行設定")]
+    [RoutePrefix("Authorize"), OpenApiTag("客戶端身分驗證")]
     public class AuthorizeController : ApiController
     {
         /// <summary>
