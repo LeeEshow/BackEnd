@@ -44,8 +44,8 @@ namespace BackEnd.Controllers
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        [HttpPost, Route("EncryptPOST")]
-        public object EncryptPOST([FromBody] object obj)
+        [HttpPost, Route("Encrypt/POST")]
+        public object Encrypt_POST([FromBody] object obj)
         {
             return new
             {
@@ -54,32 +54,38 @@ namespace BackEnd.Controllers
             };
         }
 
-        private void EncryptPOST_Client_Sample()
+        private async void EncryptPOST_Client_Sample()
         {
             Hedgehog Client = new Hedgehog();
 
-            // 1. 取得 Server Key
-            string serverKey = RESTful.GetAsync("https://localhost:44388/Authorize/GetKey").Result;
+            // 1. 取得 Server 公鑰
+            string serverKey = await RESTful.GetAsync("https://localhost:44388/Authorize/GetKey");
 
-            // 2. 登入以取得 Token
-            var credentials = new { ID = "Eshow", Password = "A123456" };
-            string token = RESTful.PostAsync<string>("https://localhost:44388/Authorize/VerifyID", credentials).Result;
-
-            // 3. 設定 Authorization Header
             if (!RESTful.Client.DefaultRequestHeaders.Contains("Authorization"))
             {
+                // 2. 加密登入訊息
+                Packet credentials = Client.Encrypt(serverKey, new { ID = "Eshow", Password = "A123456" });
+
+                // 3. 呼叫登入 API，並反序列化為 Packet
+                Packet data = await RESTful.PostAsync<Packet>("https://localhost:44388/Authorize/Encrypt/VerifyID", credentials);
+
+                // 4. 解密回傳的 Packet，取得 Token
+                string token = Client.Decrypt<string>(data);
+
                 RESTful.Client.DefaultRequestHeaders.Add("Authorization", $"Token {token}");
             }
 
-            // 4. 加密封包
-            var packet = Client.Encrypt(serverKey, new { ID = "123", Name = "456" });
 
-            // 5. 呼叫加密後的 POST API，並反序列化為 Packet
-            Packet data = RESTful.PostAsync<Packet>("https://localhost:44388/Sample/EncryptPOST", packet).Result;
 
-            // 6. 解密回傳的 Packet
-            var result = Client.Decrypt(data);
-            Console.WriteLine(result.ToJsonString());
+            // 5. 加密封包
+            Packet pack = Client.Encrypt(serverKey, DateTime.Now.yyyyMMddHHmmss());
+
+            // 6. 呼叫加密後的 POST API，並反序列化為 Packet
+            Packet response = await RESTful.PostAsync<Packet>("https://localhost:44388/Sample/Encrypt/POST", pack);
+
+            // 7. 解密回傳的 Packet
+            var result = Client.Decrypt(response);
+            Console.WriteLine(result);
         }
 
         #region struct

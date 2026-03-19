@@ -23,7 +23,7 @@ namespace BackEnd.Controllers
     public class AuthorizeController : ApiController
     {
         /// <summary>
-        /// 取得伺服端公鑰 (No Authorize verification and no two-way asymmetric encryption required)
+        /// 取得伺服端公鑰
         /// </summary>
         /// <returns></returns>
         [HttpGet, Route("GetKey"), NotEncrypt]
@@ -33,7 +33,7 @@ namespace BackEnd.Controllers
         }
 
         /// <summary>
-        /// 登入，明碼驗證 (No Authorize verification and no two-way asymmetric encryption required)
+        /// 登入，明碼驗證
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
@@ -64,8 +64,8 @@ namespace BackEnd.Controllers
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        [HttpPost, Route("EncryptVerifyID")]
-        public object EncryptVerifyID([FromBody] User_Info obj)
+        [HttpPost, Route("Encrypt/VerifyID")]
+        public object Encrypt_VerifyID([FromBody] User_Info obj)
         {
             try
             {
