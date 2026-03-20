@@ -54,37 +54,36 @@ namespace BackEnd.Controllers
             };
         }
 
-        private async void EncryptPOST_Client_Sample()
+        private async void Encrypt_Sample()
         {
             Hedgehog Client = new Hedgehog();
 
             // 1. 取得 Server 公鑰
-            string serverKey = await RESTful.GetAsync("https://localhost:44388/Authorize/GetKey");
+            var key = await RESTful.Get("https://localhost:44388/Authorize/GetKey");
 
             if (!RESTful.Client.DefaultRequestHeaders.Contains("Authorization"))
             {
                 // 2. 加密登入訊息
-                Packet credentials = Client.Encrypt(serverKey, new { ID = "Eshow", Password = "A123456" });
+                Packet credentials = Client.Encrypt(key, new { ID = "Eshow", Password = "A123456" });
 
                 // 3. 呼叫登入 API，並反序列化為 Packet
-                Packet data = await RESTful.PostAsync<Packet>("https://localhost:44388/Authorize/Encrypt/VerifyID", credentials);
+                var packet = await RESTful.Post<Packet>("https://localhost:44388/Authorize/Encrypt/VerifyID", credentials);
 
                 // 4. 解密回傳的 Packet，取得 Token
-                string token = Client.Decrypt<string>(data);
+                string token = Client.Decrypt<string>(packet);
 
                 RESTful.Client.DefaultRequestHeaders.Add("Authorization", $"Token {token}");
             }
 
 
-
             // 5. 加密封包
-            Packet pack = Client.Encrypt(serverKey, DateTime.Now.yyyyMMddHHmmss());
+            Packet pack = Client.Encrypt(key, DateTime.Now.yyyyMMddHHmmss());
 
             // 6. 呼叫加密後的 POST API，並反序列化為 Packet
-            Packet response = await RESTful.PostAsync<Packet>("https://localhost:44388/Sample/Encrypt/POST", pack);
+            var packet_2 = await RESTful.Post<Packet>("https://localhost:44388/Sample/Encrypt/POST", pack);
 
             // 7. 解密回傳的 Packet
-            var result = Client.Decrypt(response);
+            var result = Client.Decrypt(packet_2);
             Console.WriteLine(result);
         }
 
